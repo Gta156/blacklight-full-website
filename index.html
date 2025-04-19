@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blacklight NBT Tools</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Pako JS for Schematic Decompression (needed before script.js) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-darker: #070709;
+            --neon-blue: #0e82f1;
+            --neon-purple: #a742f5;
+            --neon-teal: #00eeff;
+            --text-glow: 0 0 10px rgba(0, 238, 255, 0.7);
+            --text-glow-darker: 0 0 8px rgba(14, 130, 241, 0.5);
+            --card-bg: rgba(10, 10, 15, 0.75);
+            --input-bg: rgba(20, 20, 30, 0.7);
+            --border-color: rgba(14, 130, 241, 0.3);
+            --border-color-hover: var(--neon-teal);
+            --box-shadow-hover: 0 0 15px rgba(0, 238, 255, 0.2);
+            --bs-body-color: #ffffff;
+             --bs-body-bg: var(--bg-dark);
+            --bs-border-color: var(--border-color);
+            --bs-emphasis-color: var(--neon-teal);
+             --bs-secondary-color: #cccccc;
+        }
+
+        /* Global Styles */
+        body {
+            background-color: var(--bg-dark);
+            background-image:
+                radial-gradient(circle at 20% 20%, rgba(14, 130, 241, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(167, 66, 245, 0.03) 0%, transparent 50%);
+            color: var(--bs-body-color);
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        main {
+            flex: 1; /* Allow main content to grow */
+            padding-top: 70px; /* Offset for fixed navbar */
+            padding-bottom: 50px; /* Space above footer */
+        }
+
+        /* Utility Classes */
+        .glow-text { text-shadow: var(--text-glow); }
+        .neon-border { border: 1px solid var(--neon-teal); box-shadow: 0 0 10px rgba(0, 238, 255, 0.3); }
+
+        /* Navbar Styles */
+        .navbar {
+            background-color: var(--bg-darker);
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.5);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1030; /* Ensure navbar stays on top */
+        }
+
+        .navbar-brand {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: white !important; /* Ensure high contrast */
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-right: 10px; /* Space between brand and button */
+        }
+        .navbar-brand span {
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: 900;
+        }
+
+        /* Hamburger Button */
+        .navbar-toggler {
+            border-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+         .navbar-toggler-icon {
+           background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.8%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+         }
+        /* Offcanvas Sidebar */
+        .offcanvas {
+            background-color: var(--bg-darker);
+            color: var(--bs-body-color);
+            border-left: 1px solid var(--border-color);
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.4);
+        }
+         .offcanvas-header {
+           border-bottom: 1px solid var(--border-color);
+         }
+        .offcanvas-title {
+            color: var(--neon-teal);
+            font-weight: 600;
+        }
+        .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+            background-size: 0.8em; /* Slightly smaller close icon */
+        }
+
+        /* Sidebar Navigation Links */
+        .sidebar-nav .nav-link {
+            color: #cccccc;
+            padding: 12px 20px;
+            font-size: 1.1rem;
+            border-bottom: 1px solid rgba(14, 130, 241, 0.1);
+            transition: background-color 0.3s ease, color 0.3s ease, text-shadow 0.3s ease;
+            cursor: pointer;
+        }
+        .sidebar-nav .nav-link:hover,
+        .sidebar-nav .nav-link.active {
+            background-color: rgba(14, 130, 241, 0.1);
+            color: var(--neon-teal);
+            text-shadow: var(--text-glow-darker);
+            border-left: 3px solid var(--neon-teal);
+            padding-left: 17px; /* Adjust padding for border */
+        }
+         .sidebar-nav .nav-link i {
+           margin-right: 10px;
+           width: 20px; /* Align icons */
+           text-align: center;
+           color: var(--neon-blue);
+           transition: color 0.3s ease;
+         }
+        .sidebar-nav .nav-link:hover i,
+        .sidebar-nav .nav-link.active i {
+             color: var(--neon-teal);
+        }
+
+        /* Social Icons in Navbar */
+        .navbar-social a {
+            color: #ccc;
+            font-size: 1.2rem;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+        .navbar-social a:hover {
+            color: var(--neon-teal);
+            transform: translateY(-2px);
+            text-shadow: var(--text-glow);
+        }
+
+        /* General Tool Styling */
+        .tool-section {
+            display: none; /* Hide all tools by default */
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            min-height: 50vh; /* Ensure tools take up space */
+        }
+        .tool-section.active {
+            display: block;
+            opacity: 1;
+        }
+         .tool-header {
+           font-size: 2rem;
+           font-weight: 700;
+           margin-bottom: 30px;
+           text-align: center;
+           background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+           -webkit-background-clip: text;
+           background-clip: text;
+           color: transparent;
+         }
+        /* Tool Card Styles */
+        .tool-card {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        .tool-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+            z-index: 1;
+        }
+        .tool-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            border-color: rgba(0, 238, 255, 0.4);
+        }
+         .tool-card h3.tool-card-title {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 25px;
+            color: var(--neon-teal);
+            font-weight: 600;
+            text-shadow: var(--text-glow-darker);
+        }
+
+        /* Drop Area Styles */
+        .drop-area {
+            margin: 20px auto;
+            padding: 40px 30px;
+            border: 2px dashed var(--border-color);
+            border-radius: 10px;
+            text-align: center;
+            background-color: rgba(10, 10, 15, 0.5);
+            color: #cccccc;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .drop-area::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            width: 0;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+            transition: width 0.5s ease;
+        }
+        .drop-area:hover::after { width: 100%; }
+        .drop-area:hover {
+            background-color: rgba(20, 20, 30, 0.7);
+            border-color: var(--border-color-hover);
+            color: #ffffff;
+        }
+        .drop-area.dragover {
+            border-color: var(--neon-teal);
+            background-color: rgba(14, 130, 241, 0.1);
+            box-shadow: inset 0 0 20px rgba(0, 238, 255, 0.2);
+        }
+        .drop-area i {
+            font-size: 2.5rem; /* Slightly smaller icons */
+            color: var(--neon-blue);
+            margin-bottom: 15px;
+            display: block;
+            transition: color 0.3s ease;
+        }
+        .drop-area:hover i { color: var(--neon-teal); }
+         .drop-area p {
+            margin-bottom: 5px;
+         }
+         .drop-area .file-name-display { /* Style for span displaying filename */
+            font-size: 0.9em;
+            color: #aaaaaa;
+            margin-top: 5px;
+            display: block; /* Ensure it takes its own line */
+            min-height: 1.4em; /* Prevent layout shift when text appears */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+         }
+
+        /* File Input */
+        .file-input {
+            position: absolute !important; width: 1px !important; height: 1px !important;
+            padding: 0 !important; margin: -1px !important; overflow: hidden !important;
+            clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important;
+        }
+
+        /* Input, Select, Checkbox Styles */
+        .form-control, .form-select {
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: white;
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus, .form-select:focus {
+            background-color: rgba(20, 20, 30, 0.9);
+            border-color: var(--border-color-hover);
+            box-shadow: var(--box-shadow-hover);
+            outline: none;
+            color: white;
+        }
+         .form-control::placeholder { color: #6c757d; }
+         .form-select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23cccccc' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+         }
+
+        .form-check { padding-left: 2em; /* Space for checkbox */ } /* Ensure label has space */
+        .form-check-input {
+             width: 1.25em; /* Custom size */
+             height: 1.25em; /* Custom size */
+             margin-left: -2em; /* Position correctly */
+            background-color: rgba(20, 20, 30, 0.7);
+            border: 1px solid rgba(14, 130, 241, 0.3);
+            cursor: pointer;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+             margin-top: 0.1em; /* Fine-tune vertical align */
+        }
+        .form-check-input:checked {
+            background-color: var(--neon-teal);
+            border-color: var(--neon-teal);
+            box-shadow: 0 0 10px rgba(0, 238, 255, 0.3);
+             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%230a0a0f' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M6 10l3 3l6-6'/%3e%3c/svg%3e"); /* Custom check */
+        }
+        .form-check-input:focus {
+            box-shadow: 0 0 0 0.2rem rgba(0, 238, 255, 0.25);
+            border-color: var(--neon-teal);
+        }
+        .form-check-label { cursor: pointer; padding-top: 0.1em; /* Match checkbox */ }
+         .form-label { color: #ccc; margin-bottom: 0.5rem; font-weight: 500; }
+
+
+        /* Button Styles */
+        .btn-cyber {
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            padding: 12px 30px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+            display: inline-flex; /* Align icon and text */
+            align-items: center;
+            justify-content: center;
+        }
+         .btn-cyber i {
+            margin-right: 8px; /* Space between icon and text */
+         }
+        .btn-cyber::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, var(--neon-purple), var(--neon-blue));
+            transition: left 0.6s ease;
+            z-index: -1;
+        }
+        .btn-cyber:hover::before { left: 0; }
+        .btn-cyber:hover {
+            box-shadow: 0 0 20px rgba(14, 130, 241, 0.5);
+            transform: translateY(-2px);
+            color: white; /* Ensure text stays white on hover */
+        }
+         .btn-cyber:disabled {
+            background: linear-gradient(45deg, #444, #555);
+            cursor: not-allowed;
+            opacity: 0.6;
+         }
+         .btn-cyber:disabled:hover {
+            box-shadow: none;
+            transform: none;
+         }
+         .btn-cyber:disabled::before {
+            left: -100%; /* Keep hover effect disabled */
+         }
+
+        /* Output Preview / Result Sections */
+        .output-preview {
+            /* display: none; /* Control visibility with JS */
+            margin-top: 40px;
+            margin-bottom: 40px;
+            padding: 30px;
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            color: white;
+            position: relative;
+            border: 1px solid var(--border-color);
+        }
+        .output-preview::before { /* Top border gradient */
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+        }
+        .output-preview h4 { /* Header for output */
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-teal));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            display: inline-block;
+            font-weight: 600;
+            font-size: 1.3rem;
+        }
+         .output-preview h4 i { /* Icon in output header */
+             margin-right: 8px;
+         }
+
+
+        /* Code Textarea Styles (General) */
+        .code-textarea {
+            width: 100%;
+            background-color: var(--input-bg);
+            color: var(--neon-teal); /* Default text color for code */
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 8px;
+            resize: vertical;
+            white-space: pre;
+            min-height: 200px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            margin-bottom: 20px;
+            overflow: auto; /* Allow both horizontal and vertical scroll */
+            line-height: 1.5;
+            tab-size: 4; /* Standard tab size */
+            font-size: 0.9rem;
+        }
+         .code-textarea:read-only {
+             background-color: rgba(15, 15, 20, 0.6); /* Slightly different background when read-only */
+         }
+        /* Specific Textarea Colors (If needed - overrides general) */
+         #raw-to-nbt-preview-text { color: var(--neon-teal); border-color: rgba(0, 238, 255, 0.3); }
+         #nbt-to-raw-preview-text { color: var(--neon-blue); border-color: rgba(14, 130, 241, 0.3); } /* Changed to blue */
+         #schem-to-cmd-preview-text { color: #dbfaff; border-color: rgba(0, 238, 255, 0.4); white-space: pre; } /* Near white */
+         #cmd-struct-preview-container { border: 1px solid rgba(167, 66, 245, 0.3); padding: 0; } /* Container for json + stats */
+         #cmd-struct-preview-text { color: var(--neon-purple); border: none; background-color: transparent; padding: 15px; white-space: pre; margin-bottom: 0; max-height: 400px; } /* JSON inside container */
+         #java-bedrock-preview-text { color: var(--neon-blue); border-color: rgba(14, 130, 241, 0.3); }
+
+
+        /* Validation/Status Message Styles */
+        .validation-message {
+           /* display: none; /* Control visibility with JS */
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            transition: opacity 0.3s ease;
+            text-align: left;
+        }
+         /* Info Style */
+         .validation-message.info {
+            background-color: rgba(52, 152, 219, 0.15);
+            border-left: 4px solid var(--neon-blue);
+            color: #aed6f1;
+         }
+        /* Success Style */
+         .validation-message.success {
+            background-color: rgba(0, 255, 100, 0.1);
+            border-left: 4px solid #00ff64;
+            color: #2bff88;
+         }
+        /* Error Style */
+         .validation-message.error {
+            background-color: rgba(255, 0, 0, 0.15);
+            border-left: 4px solid #ff3b3b;
+            color: #ff6b6b;
+         }
+         /* Spinner inside buttons */
+        .btn-spinner {
+             display: inline-block;
+             width: 1rem;
+             height: 1rem;
+             vertical-align: -0.125em;
+             border: 0.15em solid currentColor;
+             border-right-color: transparent;
+             border-radius: 50%;
+             -webkit-animation: .75s linear infinite spinner-border;
+             animation: .75s linear infinite spinner-border;
+             margin-right: 8px;
+        }
+        @keyframes spinner-border { to { transform: rotate(360deg); } }
+
+        /* Footer Styles */
+        .footer {
+            background-color: var(--bg-darker);
+            padding: 30px 0;
+            border-top: 1px solid var(--border-color);
+            margin-top: auto; /* Push footer to bottom */
+            text-align: center;
+        }
+        .footer-links a {
+            color: #cccccc;
+            margin: 0 15px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        .footer-links a:hover {
+            color: var(--neon-teal);
+            text-shadow: var(--text-glow);
+        }
+        .copyright {
+            color: #888888;
+            font-size: 0.9rem;
+            margin-top: 20px;
+        }
+
+        /* Specific Tool Adjustments */
+        /* (e.g., Commands to Structure Preview container) */
+        #cmd-struct-stats-info { /* Style for stats in Cmd-to-Structure */
+             background-color: rgba(52, 152, 219, 0.15);
+             border-top: 1px solid rgba(52, 152, 219, 0.3);
+             border-bottom: 1px solid rgba(52, 152, 219, 0.3);
+             color: #aed6f1;
+             font-size: 0.9rem;
+             padding: 10px 15px;
+        }
+         #cmd-struct-stats-info p {
+            margin-bottom: 5px !important;
+         }
+         #cmd-struct-stats-info strong {
+             color: #e0f2f7;
+         }
+
+         /* Ensure Schem options spacing is correct */
+         #schem-options-row .form-check {
+            margin-top: 2.1rem; /* Align checkbox vertically on medium+ screens */
+            padding-left: 2em; /* Add consistent padding for the checkbox */
+         }
+         #nbt-to-raw-options .form-check { /* Style for the new filter checkbox */
+             margin-top: 15px;
+             margin-bottom: 5px; /* Reduce bottom margin if needed */
+             display: flex;
+             justify-content: center;
+             align-items: center;
+         }
+
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+             main { padding-top: 60px; }
+             .navbar-brand { font-size: 1.5rem; }
+             .tool-header { font-size: 1.6rem; }
+             .tool-card h3.tool-card-title { font-size: 1.3rem; }
+             .btn-cyber { padding: 10px 20px; font-size: 0.9rem;}
+             .footer { text-align: center; }
+             .footer-links a { margin: 0 8px; display: inline-block; }
+             #schem-options-row .form-check { margin-top: 0; margin-bottom: 20px; text-align: center; } /* Stack checkbox on small screens */
+             #nbt-to-raw-options .form-check { margin-top: 10px; justify-content: flex-start; } /* Align left on small screens */
+             /* Ensure form elements stack nicely */
+             .row > .col-md-4, .row > .col-md-6 { margin-bottom: 0; } /* Remove bottom margin to tighten stacking */
+             .form-control, .form-select, .form-check { margin-bottom: 15px !important; } /* Add consistent bottom margin for stacking */
+        }
+
+        /* Print styles (basic) */
+        @media print {
+             body { background-color: white; color: black; }
+             .navbar, .offcanvas, .footer, .drop-area, button { display: none !important; }
+             .tool-section, .tool-card, .output-preview { display: block !important; border: 1px solid #ccc; box-shadow: none; margin-bottom: 20px; }
+             .code-textarea { color: #333; background-color: #f8f8f8; border: 1px solid #ddd; white-space: pre-wrap; word-wrap: break-word; }
+             h1, h2, h3, h4 { color: black; background: none; -webkit-background-clip: unset; background-clip: unset; }
+             .validation-message, .form-check, .form-label, .tool-card-title { display: none; } /* Hide UI elements */
+             main { padding-top: 10px; }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand navbar-dark">
+        <div class="container-fluid">
+            <!-- Hamburger Toggle Button -->
+            <button class="btn btn-dark me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#mainNavSidebar" aria-controls="mainNavSidebar" aria-label="Toggle navigation">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <!-- Brand -->
+            <a class="navbar-brand" href="#"><span>Blacklight</span> NBT</a>
+
+            <!-- Optional: Add right-aligned social icons or other links -->
+            <div class="navbar-social ms-auto">
+                <a href="https://discord.gg/3pZvgq4XPq" target="_blank" title="Join Discord">
+                    <i class="fab fa-discord"></i>
+                </a>
+                <!-- <a href="YOUR_GITHUB_REPO_LINK" target="_blank" title="GitHub">
+                    <i class="fab fa-github"></i>
+                </a> -->
+                 <!-- Add other icons/links here if needed -->
+            </div>
+        </div>
+    </nav>
+
+    <!-- Offcanvas Sidebar -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="mainNavSidebar" aria-labelledby="mainNavSidebarLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="mainNavSidebarLabel">Tools Menu</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+            <nav class="nav flex-column sidebar-nav">
+                <!-- Add data-tool-id matching the section ID -->
+                <a class="nav-link active" href="#" data-tool-id="java-to-bedrock">
+                     <i class="fas fa-exchange-alt"></i>JavaCmd > BedrockCmd
+                 </a>
+                <a class="nav-link" href="#" data-tool-id="raw-to-nbt">
+                    <i class="fas fa-file-code"></i>Raw Commands > NBT
+                </a>
+                <a class="nav-link" href="#" data-tool-id="nbt-to-raw">
+                    <i class="fas fa-file-alt"></i>NBT > Raw Commands
+                </a>
+                <a class="nav-link" href="#" data-tool-id="schem-to-commands">
+                     <i class="fas fa-cubes"></i>Schematic > Commands
+                 </a>
+                 <a class="nav-link" href="#" data-tool-id="commands-to-structure">
+                    <i class="fas fa-cube"></i>Commands > Structure
+                </a>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="py-5">
+        <div class="container">
+
+             <!-- ============================ -->
+            <!--  JAVA TO BEDROCK TRANSLATOR  -->
+            <!-- ============================ -->
+            <section id="java-to-bedrock" class="tool-section active"> <!-- Starts active -->
+                <h2 class="tool-header">Java to Bedrock Translator</h2>
+                 <div class="row">
+                     <div class="col-lg-8 mx-auto">
+                        <div class="tool-card">
+                             <h3 class="tool-card-title"><i class="fas fa-exchange-alt"></i>Convert Java Edition Commands</h3>
+
+                             <!-- Drop Area -->
+                            <div id="java-bedrock-drop-area" class="drop-area" title="Upload Java commands .txt file">
+                                <i class="fas fa-file-upload"></i>
+                                <p>Drag & drop Java commands file</p>
+                                <span id="java-bedrock-file-name" class="file-name-display">No file selected</span>
+                                <input type="file" id="java-bedrock-input-file" accept=".txt" class="file-input">
+                             </div>
+
+                             <!-- Translate Button -->
+                            <div class="text-center mt-4">
+                                <button id="java-bedrock-translate-button" class="btn btn-cyber">
+                                    <i class="fas fa-magic"></i>Translate Commands
+                                 </button>
+                             </div>
+
+                             <!-- Validation Message -->
+                            <div id="java-bedrock-validation-message" class="validation-message" style="display: none;"></div>
+                        </div>
+
+                        <!-- Output Preview -->
+                        <div id="java-bedrock-output-preview" class="output-preview" style="display: none;">
+                             <h4><i class="fas fa-code"></i>Translated Bedrock Commands</h4>
+                            <textarea id="java-bedrock-preview-text" class="code-textarea" rows="10" readonly spellcheck="false" wrap="soft"></textarea>
+                            <div class="text-center mt-3">
+                                <button id="java-bedrock-download-button" class="btn btn-cyber" disabled>
+                                    <i class="fas fa-download"></i>Download Bedrock Commands
+                                 </button>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+             </section>
+
+             <!-- ================== -->
+             <!-- RAW TO NBT TOOL   -->
+             <!-- ================== -->
+            <section id="raw-to-nbt" class="tool-section">
+                <h2 class="tool-header">Raw Commands to NBT</h2>
+                 <div class="row">
+                     <div class="col-lg-8 mx-auto">
+                        <div class="tool-card">
+                            <h3 class="tool-card-title"><i class="fas fa-file-code"></i>Create NBT from Commands</h3>
+
+                            <!-- Drop Area -->
+                            <div id="raw-to-nbt-drop-area" class="drop-area" title="Upload raw commands .txt file">
+                                 <i class="fas fa-file-upload"></i>
+                                <p>Drag & drop command file</p>
+                                <span id="raw-to-nbt-file-name" class="file-name-display">No file selected</span>
+                                 <input type="file" id="raw-to-nbt-input-file" accept=".txt" class="file-input">
+                             </div>
+
+                             <!-- Options -->
+                             <div class="row mt-4">
+                                <div class="col-md-6">
+                                     <label for="raw-to-nbt-title" class="form-label">NBT Output Name</label>
+                                     <input type="text" id="raw-to-nbt-title" class="form-control" placeholder="e.g., MyAwesomeBuild" value="MyBuild">
+                                 </div>
+                                <div class="col-md-6">
+                                    <label for="raw-to-nbt-bytes-per-npc" class="form-label">Bytes Per NPC (Limit)</label>
+                                    <input type="number" id="raw-to-nbt-bytes-per-npc" class="form-control" placeholder="Default: 2000" value="2000" min="100">
+                                 </div>
+                             </div>
+
+                             <!-- Generate Button -->
+                            <div class="text-center mt-4">
+                                 <button id="raw-to-nbt-generate-button" class="btn btn-cyber">
+                                     <i class="fas fa-cogs"></i>Generate NBT
+                                </button>
+                            </div>
+
+                            <!-- Validation Message -->
+                            <div id="raw-to-nbt-validation-message" class="validation-message" style="display: none;"></div>
+                        </div>
+
+                        <!-- Output Preview -->
+                         <div id="raw-to-nbt-output-preview" class="output-preview" style="display: none;">
+                            <h4><i class="fas fa-save"></i>Generated NBT Output</h4>
+                            <textarea id="raw-to-nbt-preview-text" class="code-textarea" rows="10" readonly spellcheck="false" wrap="soft"></textarea>
+                            <div class="text-center mt-3">
+                                <button id="raw-to-nbt-download-button" class="btn btn-cyber" disabled>
+                                     <i class="fas fa-download"></i>Download NBT File
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================== -->
+             <!-- NBT TO RAW TOOL   -->
+             <!-- ================== -->
+            <section id="nbt-to-raw" class="tool-section">
+                 <h2 class="tool-header">NBT to Raw Extractor</h2>
+                 <div class="row">
+                    <div class="col-lg-8 mx-auto">
+                        <div class="tool-card">
+                            <h3 class="tool-card-title"><i class="fas fa-search"></i>Extract Commands from NBT</h3>
+
+                            <!-- Drop Area -->
+                            <div id="nbt-to-raw-drop-area" class="drop-area" title="Upload text-based .nbt, .mcstructure, or .txt files">
+                                <i class="fas fa-file-alt"></i>
+                                <p>Drag & drop text NBT file</p>
+                                 <span id="nbt-to-raw-file-name" class="file-name-display">No file selected</span>
+                                <input type="file" id="nbt-to-raw-input-file" accept=".nbt,.mcstructure,.txt" class="file-input">
+                            </div>
+
+                            <!-- ** NEW FILTER CHECKBOX ** -->
+                            <div id="nbt-to-raw-options" class="mt-3 mb-2 text-center">
+                                <div class="form-check form-switch d-inline-block">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="nbt-to-raw-filter-checkbox">
+                                    <label class="form-check-label" for="nbt-to-raw-filter-checkbox">Only show Setblock/Fill commands</label>
+                                </div>
+                            </div>
+                             <!-- ** END NEW FILTER CHECKBOX ** -->
+
+
+                             <!-- Extract Button -->
+                            <div class="text-center mt-4">
+                                 <button id="nbt-to-raw-extract-button" class="btn btn-cyber">
+                                     <i class="fas fa-terminal"></i>Extract Raw Commands
+                                 </button>
+                             </div>
+
+                            <!-- Validation Message -->
+                            <div id="nbt-to-raw-validation-message" class="validation-message" style="display: none;"></div>
+                        </div>
+
+                        <!-- Output Preview -->
+                        <div id="nbt-to-raw-output-preview" class="output-preview" style="display: none;">
+                            <h4><i class="fas fa-list-ul"></i>Extracted Raw Commands</h4>
+                             <textarea id="nbt-to-raw-preview-text" class="code-textarea" rows="10" readonly spellcheck="false" wrap="off"></textarea> <!-- wrap="off" good for commands -->
+                            <div class="text-center mt-3">
+                                 <button id="nbt-to-raw-download-button" class="btn btn-cyber" disabled>
+                                    <i class="fas fa-download"></i>Download Raw Commands
+                                </button>
+                            </div>
+                         </div>
+
+                         <!-- Info/Help Section for NBT to Raw (Optional but useful) -->
+                         <div class="tool-card mt-4">
+                             <h3 class="tool-card-title"><i class="fas fa-info-circle"></i>How NBT to Raw Works</h3>
+                             <p><small>This tool reads text files (like those generated by the Raw-to-NBT tool or some .mcstructure files) and uses pattern matching to find lines resembling commands (e.g., `"cmd_line": "..."` or `setblock ...`). It cleans up escape characters and presents the raw commands. It cannot parse true binary NBT. Use the filter option to only display `setblock` and `fill` commands.</small></p>
+                         </div>
+                     </div>
+                 </div>
+            </section>
+
+             <!-- ======================== -->
+             <!-- SCHEM TO COMMANDS TOOL -->
+             <!-- ======================== -->
+             <section id="schem-to-commands" class="tool-section">
+                <h2 class="tool-header">Schematic to Commands Converter</h2>
+                <div class="row">
+                     <div class="col-lg-8 mx-auto">
+                        <div class="tool-card">
+                            <h3 class="tool-card-title"><i class="fas fa-cubes"></i>Convert .SCHEM to Commands</h3>
+
+                             <!-- Drop Area -->
+                            <div id="schem-drop-area" class="drop-area" title="Accepts .schem files">
+                                <i class="fas fa-file-archive"></i>
+                                <p>Drag & drop .schem file</p>
+                                <span id="schem-file-name" class="file-name-display">No file selected</span>
+                                <input type="file" id="schem-file-input" accept=".schem,.schematic" class="file-input">
+                             </div>
+
+                             <!-- Options -->
+                             <div class="row mt-4" id="schem-options-row">
+                                <div class="col-md-6 mb-3">
+                                     <label for="schem-output-name" class="form-label">Output Name Base</label>
+                                    <input type="text" id="schem-output-name" class="form-control" placeholder="e.g., CastleCommands" value="SchemCommands">
+                                 </div>
+                                <div class="col-md-6 mb-3 d-flex align-items-center justify-content-start justify-content-md-center">
+                                     <div class="form-check form-switch">
+                                         <input class="form-check-input" type="checkbox" role="switch" id="schem-include-air" checked>
+                                         <label class="form-check-label" for="schem-include-air">Include Air Blocks</label>
+                                    </div>
+                                 </div>
+                             </div>
+
+                            <div class="row">
+                                <label class="form-label col-12">Command Offset (Relative)</label>
+                                <div class="col-md-4 mb-3">
+                                    <label for="schem-offset-x" class="form-label visually-hidden">Offset X</label>
+                                     <input type="number" id="schem-offset-x" class="form-control" placeholder="X" value="0" title="Offset X">
+                                 </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="schem-offset-y" class="form-label visually-hidden">Offset Y</label>
+                                    <input type="number" id="schem-offset-y" class="form-control" placeholder="Y" value="0" title="Offset Y">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="schem-offset-z" class="form-label visually-hidden">Offset Z</label>
+                                    <input type="number" id="schem-offset-z" class="form-control" placeholder="Z" value="0" title="Offset Z">
+                                 </div>
+                             </div>
+
+                             <!-- Generate Button -->
+                            <div class="text-center mt-3">
+                                 <button id="schem-generate-button" class="btn btn-cyber">
+                                     <i class="fas fa-bolt"></i>Generate Commands
+                                 </button>
+                             </div>
+
+                            <!-- Status/Validation Message -->
+                            <div id="schem-status-message" class="validation-message" style="display: none;"></div>
+                         </div>
+                        <!-- Output preview section added below if needed -->
+                        <div id="schem-to-cmd-output-preview" class="output-preview" style="display: none;">
+                           <h4><i class="fas fa-list-ul"></i>Generated Commands (Preview)</h4>
+                           <textarea id="schem-to-cmd-preview-text" class="code-textarea" rows="10" readonly spellcheck="false" wrap="off"></textarea>
+                           <div class="text-center mt-3">
+                              <button id="schem-download-button" class="btn btn-cyber" disabled>
+                                 <i class="fas fa-download"></i>Download Full Command List
+                              </button>
+                           </div>
+                        </div>
+                    </div>
+                 </div>
+            </section>
+
+            <!-- ============================ -->
+             <!-- COMMANDS TO STRUCTURE TOOL -->
+            <!-- ============================ -->
+            <section id="commands-to-structure" class="tool-section">
+                <h2 class="tool-header">Commands to Structure</h2>
+                 <div class="row">
+                    <div class="col-lg-8 mx-auto">
+                         <div class="tool-card">
+                             <h3 class="tool-card-title"><i class="fas fa-cube"></i>Create .mcstructure File</h3>
+
+                             <!-- Drop Area -->
+                            <div id="cmd-struct-drop-area" class="drop-area" title="Upload Minecraft commands .txt file">
+                                <i class="fas fa-file-code"></i>
+                                <p>Drag & drop command file</p>
+                                <span id="cmd-struct-file-name" class="file-name-display">No file selected</span>
+                                <input type="file" id="cmd-struct-input-file" accept=".txt" class="file-input">
+                             </div>
+
+                            <!-- Convert Button -->
+                             <div class="text-center mt-4">
+                                <button id="cmd-struct-convert-button" class="btn btn-cyber">
+                                     <i class="fas fa-sync-alt"></i>Convert to Structure
+                                 </button>
+                            </div>
+
+                            <!-- Validation Message -->
+                            <div id="cmd-struct-validation-message" class="validation-message" style="display: none;"></div>
+                        </div>
+
+                         <!-- Structure Output Preview -->
+                         <div id="cmd-struct-output-preview" class="output-preview" style="display: none;">
+                             <h4><i class="fas fa-project-diagram"></i>Structure Data Preview</h4>
+                            <div id="cmd-struct-preview-container" class="mb-3">
+                                <!-- Stats injected here by JS -->
+                                <pre id="cmd-struct-preview-text" class="code-textarea"></pre>
+                             </div>
+                             <div class="text-center">
+                                <button id="cmd-struct-download-button" class="btn btn-cyber" disabled>
+                                     <i class="fas fa-download"></i>Download .mcstructure
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                 </div>
+             </section>
+
+        </div> <!-- End main container -->
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-links">
+                <!-- <a href="#">About</a> -->
+                <a href="https://discord.gg/3pZvgq4XPq" target="_blank">Community Discord</a>
+                 <!-- <a href="#">GitHub</a> -->
+            </div>
+            <div class="copyright">
+                 © 2024 Blacklight NBT Tools. All rights reserved.
+                 <!-- Optional: Not affiliated message -->
+                 <br><small>Not affiliated with Mojang AB or Minecraft.</small>
+             </div>
+         </div>
+     </footer>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <!-- Custom JS for all tools -->
+    <script src="script.js"></script>
+
+</body>
+</html>
