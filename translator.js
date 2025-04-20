@@ -462,7 +462,7 @@ function formatBedrockCommand(bedrockRep) {
 
              return `${formattedKey}=${formattedValue}`;
          });
-         commandStr += ` [${stateParts.join(',')}]`;
+         commandStr += `[${stateParts.join(',')}]`;
      }
      // Note: NBT translation ('bedrockRep.nbt') is complex and not implemented here.
      // Appending Java NBT directly is usually incorrect for Bedrock.
