@@ -521,6 +521,7 @@ function processNpcCommandsByBytes(commands, maxBytes, nbtName, startSection, jo
 }
 
 // --- End of Replacement Block ---
+
 // ========================================================================== //
 //                 Commands to Structure Converter Logic                      //
 // ========================================================================== //
@@ -1000,17 +1001,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const closeSidebarButton = document.getElementById('close-sidebar-button');
 
     // --- Tool Specific Elements ---
-    // Raw to NBT
-    const rawToNbtDropArea = document.getElementById('raw-to-nbt-drop-area');
-    const rawToNbtInputFile = document.getElementById('raw-to-nbt-input-file');
-    const rawToNbtGenerateButton = document.getElementById('raw-to-nbt-generate-button');
-    const rawToNbtNbtTitleInput = document.getElementById('raw-to-nbt-nbt-title');
-    const rawToNbtBytesInput = document.getElementById('raw-to-nbt-bytes-per-npc');
-    const rawToNbtPreviewArea = document.getElementById('raw-to-nbt-output-preview');
-    const rawToNbtPreviewTextarea = document.getElementById('raw-to-nbt-preview-text');
-    const rawToNbtDownloadBtn = document.getElementById('raw-to-nbt-download-button');
-    const rawToNbtValidationMsg = document.getElementById('raw-to-nbt-validation-message');
-    const rawToNbtFileNameDisplay = rawToNbtDropArea ? rawToNbtDropArea.querySelector('span.file-name-display') : null;
+// Raw to NBT (Example - adapted below)
+const rawToNbtInputFile_UI = document.getElementById('raw-to-nbt-input-file'); // Need unique names for DOM refs
+const rawToNbtDropArea_UI = document.getElementById('raw-to-nbt-drop-area');
+// ... other Raw to NBT UI elements ...
 
     // Commands to Structure
     const cmdStructDropArea = document.getElementById('cmd-struct-drop-area');
@@ -1270,107 +1264,224 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 
-    // --- Raw to NBT Setup ---
-    if(rawToNbtDropArea) {
-        setupDropAreaListeners(rawToNbtDropArea, rawToNbtInputFile, rawToNbtFileNameDisplay);
-        setupFileInputHandler(
-            rawToNbtInputFile,
-            (content) => { rawToNbtFileContent = content; },
-            rawToNbtFileNameDisplay,
-            rawToNbtValidationMsg,
-            ['.txt', 'text/plain'],
-            readFileAsText
-        );
+    // --- Raw to NBT Listeners (Exact structure from user provided file) ---
+
+    // Get DOM elements using specific IDs from index.html
+    const rawToNbtDropArea = document.getElementById('raw-to-nbt-drop-area');
+    const rawToNbtInputFile = document.getElementById('raw-to-nbt-input-file');
+    const rawToNbtGenerateButton = document.getElementById('raw-to-nbt-generate-button');
+    const rawToNbtNbtTitleInput = document.getElementById('raw-to-nbt-nbt-title');
+    const rawToNbtBytesInput = document.getElementById('raw-to-nbt-bytes-per-npc');
+    const rawToNbtPreviewArea = document.getElementById('raw-to-nbt-output-preview');
+    const rawToNbtPreviewTextarea = document.getElementById('raw-to-nbt-preview-text');
+    const rawToNbtDownloadBtn = document.getElementById('raw-to-nbt-download-button');
+    const rawToNbtValidationMsg = document.getElementById('raw-to-nbt-validation-message');
+
+    // File reading function (Specific to RawToNbt as defined in the provided script)
+    function rawToNbtReadFile(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        rawToNbtFileContent = e.target.result; // Use the global variable
+        const dropAreaTextElement = rawToNbtDropArea.querySelector('span.file-name-display'); // Use the span for filename
+        if (dropAreaTextElement) {
+             dropAreaTextElement.textContent = `${file.name} loaded. Ready to generate NBT.`;
+        }
+        rawToNbtPreviewArea.style.display = 'none'; // Hide previous results
+        rawToNbtDownloadBtn.disabled = true;
+        hideValidationMessage(rawToNbtValidationMsg); // Use shared helper
+
+      };
+      reader.onerror = function() {
+           showValidationMessage(rawToNbtValidationMsg, 'Error reading file.', 'error'); // Use shared helper
+           rawToNbtResetTool(); // Call reset function
+      };
+      reader.readAsText(file);
     }
-    if(rawToNbtGenerateButton) {
-        rawToNbtGenerateButton.addEventListener('click', () => {
-            if (!rawToNbtFileContent) {
-                showValidationMessage(rawToNbtValidationMsg, 'Please select a raw commands text file first.', 'error');
-                return;
-            }
-            const nbtTitle = rawToNbtNbtTitleInput.value.trim();
-            const maxBytesInput = rawToNbtBytesInput.value.trim();
-            let maxBytes;
-            try {
-                maxBytes = parseInt(maxBytesInput, 10);
-                if (isNaN(maxBytes) || maxBytes <= 500) throw new Error("Value must be > 500");
-            } catch(e) {
-                showValidationMessage(rawToNbtValidationMsg, `Invalid Max Bytes per NPC: ${e.message}`, 'error');
-                return;
-            }
-            hideValidationMessage(rawToNbtValidationMsg);
-            showValidationMessage(rawToNbtValidationMsg, 'Generating NBT...', 'info');
 
-            // Use setTimeout to allow UI update before potentially long processing
-            setTimeout(() => {
-                try {
-                    const commands = getUsefulCommands(rawToNbtFileContent);
-                    // Separation logic might need adjustment if escapeQuotesForNbt changes equals signs
-                    const { normalCommands, equalsCommands } = separateCommands(commands);
-                    const nbtName = nbtTitle || 'Blacklight NBT';
+    // Function to attach drop area events (Specific to RawToNbt)
+    function rawToNbtAttachDropAreaEvents() {
+      if(rawToNbtDropArea) {
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+          rawToNbtDropArea.addEventListener(eventName, preventDefaults, false);
+          document.body.addEventListener(eventName, preventDefaults, false);
+        });
+        ['dragenter', 'dragover'].forEach(eventName => {
+          rawToNbtDropArea.addEventListener(eventName, highlight, false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+          rawToNbtDropArea.addEventListener(eventName, unhighlight, false);
+        });
+        rawToNbtDropArea.addEventListener('drop', handleDrop, false);
 
-                    let combinedNpcData = [];
-                    let npcCount = 0;
+        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+        function highlight() { rawToNbtDropArea.classList.add('dragover'); }
+        function unhighlight() { rawToNbtDropArea.classList.remove('dragover'); }
 
-                    // Process normal commands (assuming specific joiner/format needed)
-                    if (normalCommands.length > 0) {
-                         const result = processNpcCommandsByBytes(normalCommands, maxBytes, nbtName, npcCount, commandJoinerNormal);
-                         if (result.npcData) combinedNpcData.push(result.npcData);
-                         npcCount += result.count;
-                    }
-                    // Process equals commands (if any, assuming different joiner/format)
-                    if (equalsCommands.length > 0) {
-                        // Assuming equals commands need the same processing logic, just check content
-                        console.warn("RawToNBT: 'Equals' command separation heuristic might be inaccurate. Processing all as normal.");
-                         const result = processNpcCommandsByBytes(equalsCommands, maxBytes, nbtName, npcCount, commandJoinerNormal); // Use same joiner for now
-                         if (result.npcData) combinedNpcData.push(result.npcData);
-                         npcCount += result.count;
-                    }
+        function handleDrop(e) {
+          const dt = e.dataTransfer;
+          const files = dt.files;
+          if (files.length > 0) {
+               const file = files[0];
+               // Check if it's a text file
+               if (file.type === "" || file.type === "text/plain" || file.name.toLowerCase().endsWith('.txt')) {
+                   rawToNbtInputFile.files = files; // Assign to input
+                   const event = new Event('change', { bubbles: true });
+                   rawToNbtInputFile.dispatchEvent(event); // Trigger change for consistency
+                   // rawToNbtReadFile(file); // Reading now handled by input change
+               } else {
+                   showValidationMessage(rawToNbtValidationMsg, 'Please drop a .txt file.'); // Use shared helper
+               }
+           }
+        }
+      }
+    }
+
+    // Function to reset the Raw to NBT section (Specific to RawToNbt)
+    function rawToNbtResetTool() {
+        rawToNbtFileContent = '';
+        const dropAreaTextElement = rawToNbtDropArea.querySelector('span.file-name-display');
+        if(dropAreaTextElement) dropAreaTextElement.textContent = 'No file selected';
+        rawToNbtPreviewArea.style.display = 'none';
+        rawToNbtNbtTitleInput.value = '';
+        rawToNbtBytesInput.value = '30000';
+        hideValidationMessage(rawToNbtValidationMsg);
+        rawToNbtDownloadBtn.disabled = true;
+        rawToNbtInputFile.value = ''; // Clear file input
+
+        // Reattach click handler for the drop area
+        if (rawToNbtDropArea) {
+            rawToNbtDropArea.onclick = function() {
+                rawToNbtInputFile.click();
+            };
+        }
+        // Reattach drag/drop
+        rawToNbtAttachDropAreaEvents();
+    }
 
 
-                    let nbtOutput = getBlockOpener(nbtName);
-                    nbtOutput += combinedNpcData.join(','); // Join NPC blocks with commas
-                    nbtOutput += getBlockCloser();
+    // Initial setup for Raw to NBT file input click and change
+    if(rawToNbtDropArea && rawToNbtInputFile) {
+        rawToNbtDropArea.onclick = function() {
+            // Allow reset only if output is visible? Or always allow selection?
+            // For robustness, always allow selecting a new file.
+             if (rawToNbtPreviewArea.style.display === 'block') {
+                 // Optionally reset the state if a file was processed
+                 console.log("RawToNBT: Resetting tool state on drop area click after generation.");
+                 rawToNbtResetTool(); // Reset before triggering click
+                 // rawToNbtInputFile.click(); // Should happen anyway due to reset? Test this.
+             }
+            rawToNbtInputFile.click();
+        };
 
-                    rawToNbtPreviewTextarea.value = nbtOutput;
-                    rawToNbtPreviewArea.style.display = 'block';
-                    rawToNbtDownloadBtn.disabled = false;
-                    hideValidationMessage(rawToNbtValidationMsg);
-                    showValidationMessage(rawToNbtValidationMsg, `NBT generated with ${npcCount} NPC blocks.`, 'success');
-
-                } catch (e) {
-                    console.error("RawToNBT Generation Error:", e);
-                    hideValidationMessage(rawToNbtValidationMsg);
-                    showValidationMessage(rawToNbtValidationMsg, `Error generating NBT: ${e.message}`, 'error');
-                    rawToNbtPreviewArea.style.display = 'none';
-                    rawToNbtDownloadBtn.disabled = true;
+        rawToNbtInputFile.onchange = function(e) { // Use onchange for direct assignment
+            const file = e.target.files[0];
+            if (file) {
+                if (file.type === "" || file.type === "text/plain" || file.name.toLowerCase().endsWith('.txt')) {
+                    rawToNbtReadFile(file);
+                } else {
+                    showValidationMessage(rawToNbtValidationMsg, 'Please select a .txt file.');
+                    rawToNbtResetTool(); // Reset on invalid file type
                 }
-            }, 50); // 50ms delay
-        });
-    }
-     if(rawToNbtDownloadBtn) {
-        rawToNbtDownloadBtn.addEventListener('click', () => {
-            const nbtText = rawToNbtPreviewTextarea.value;
-            if (!nbtText) {
-                showValidationMessage(rawToNbtValidationMsg, 'No NBT data generated to download.', 'error');
-                return;
+            } else {
+                 rawToNbtResetTool(); // Reset if selection is cancelled
             }
-            const nbtTitle = rawToNbtNbtTitleInput.value.trim() || 'Blacklight_NBT';
-            const fileName = `Horion ${nbtTitle.replace(/\s+/g, '_')} Build.txt`;
-
-            const blob = new Blob([nbtText], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showValidationMessage(rawToNbtValidationMsg, 'NBT file download started.', 'success');
-        });
+        };
     }
 
+    // Initially attach drag and drop event listeners for Raw to NBT
+    rawToNbtAttachDropAreaEvents();
+
+    // Generate NBT button event listener (Specific to RawToNbt)
+    if(rawToNbtGenerateButton) {
+      rawToNbtGenerateButton.addEventListener('click', () => {
+        if (!rawToNbtFileContent) { // Check specific global variable
+          showValidationMessage(rawToNbtValidationMsg, 'Please select a file.'); // Use specific validation element
+          return;
+        }
+
+        const nbtTitle = rawToNbtNbtTitleInput.value.trim(); // Use specific input element
+        const maxBytesInput = rawToNbtBytesInput.value.trim(); // Use specific input element
+        let maxBytes;
+        try {
+          maxBytes = parseInt(maxBytesInput, 10);
+          if (isNaN(maxBytes) || maxBytes <= 500) throw new Error("Value too small"); // Adjusted minimum
+        } catch(e) {
+          showValidationMessage(rawToNbtValidationMsg, 'Please enter a valid positive integer (> 500) for Max Bytes per NPC.');
+          return;
+        }
+        hideValidationMessage(rawToNbtValidationMsg); // Hide previous messages
+
+        try {
+            showValidationMessage(rawToNbtValidationMsg, 'Generating NBT...', 'info');
+             // --- NBT Generation Logic (using functions defined above) ---
+             const commands = getUsefulCommands(rawToNbtFileContent);
+             const { normalCommands, equalsCommands } = separateCommands(commands);
+             const nbtName = nbtTitle || 'Blacklight NBT'; // Use default if no title
+
+             let nbtData = getBlockOpener(nbtName);
+             let curSec = 0;
+             let combinedNpcData = [];
+
+             if (normalCommands.length > 0) {
+                 const result = processNpcCommandsByBytes(normalCommands, maxBytes, nbtName, curSec, commandJoinerNormal, false);
+                 if (result.npcData) combinedNpcData.push(result.npcData);
+                 curSec += result.count;
+             }
+
+             if (equalsCommands.length > 0) {
+                 const result = processNpcCommandsByBytes(equalsCommands, maxBytes, nbtName, curSec, commandJoinerEquals, true);
+                  if (result.npcData) combinedNpcData.push(result.npcData);
+                 // curSec += result.count; // Not needed if last
+             }
+
+             nbtData += combinedNpcData.join(',');
+             nbtData += getBlockCloser();
+             // --- End NBT Generation Logic ---
+
+
+             // Display preview
+             rawToNbtPreviewTextarea.value = nbtData;
+             rawToNbtPreviewArea.style.display = 'block';
+             rawToNbtDownloadBtn.disabled = false;
+             hideValidationMessage(rawToNbtValidationMsg); // Hide info message
+             showValidationMessage(rawToNbtValidationMsg, 'NBT generated successfully!', 'success');
+
+        } catch (e) {
+             console.error("RawToNBT Generation Error:", e);
+             hideValidationMessage(rawToNbtValidationMsg);
+             showValidationMessage(rawToNbtValidationMsg, `Error generating NBT: ${e.message}`, 'error');
+             rawToNbtPreviewArea.style.display = 'none';
+             rawToNbtDownloadBtn.disabled = true;
+         }
+      });
+    }
+
+    // Download button event listener (Specific to RawToNbt)
+    if(rawToNbtDownloadBtn) {
+      rawToNbtDownloadBtn.addEventListener('click', () => {
+        const nbtText = rawToNbtPreviewTextarea.value;
+        if (!nbtText) {
+            showValidationMessage(rawToNbtValidationMsg, 'No NBT data generated to download.');
+            return;
+        }
+        const nbtTitle = rawToNbtNbtTitleInput.value.trim();
+        const nbtName = nbtTitle || 'Blacklight_NBT'; // Use underscore
+        const fileName = `Horion ${nbtName} Build.txt`; // Match original naming
+
+        const blob = new Blob([nbtText], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showValidationMessage(rawToNbtValidationMsg, 'NBT file download started.', 'success');
+      });
+    }
+    // --- End Raw to NBT Listeners ---
     // --- Commands to Structure Setup ---
     if(cmdStructDropArea) {
         setupDropAreaListeners(cmdStructDropArea, cmdStructInputFile, cmdStructFileNameDisplay);
