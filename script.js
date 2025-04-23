@@ -975,6 +975,7 @@ function generateSchemCommands(schematicData, dims, offset, includeAir) {
     return commands;
 }
 
+
 // ========================================================================== //
 //                      Java to Bedrock Translator                            //
 // ========================================================================== //
@@ -982,10 +983,9 @@ function generateSchemCommands(schematicData, dims, offset, includeAir) {
 // Global state for Java to Bedrock tool
 let javaBedrockFileContent = '';
 
-// NOTE: The actual translation logic (parseJavaCommand, javaToUniversal, etc.)
-// is NOT included here. It runs on the server (server.js). This section
-// only contains the client-side interaction logic (file handling, sending
-// requests to the server).
+// NOTE: The actual translation logic is now expected to be globally available
+// from translator.js, specifically the `translateCommands` async function.
+// This section in script.js only handles the UI interaction.
 
 // ========================================================================== //
 //                           UI Interaction Logic                             //
@@ -997,15 +997,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('sidebar');
     const sidebarLinks = document.querySelectorAll('#sidebar .tool-link');
     const toolSections = document.querySelectorAll('.tool-section');
-    const closeSidebarButton = document.getElementById('close-sidebar-button'); // Added for closing
+    const closeSidebarButton = document.getElementById('close-sidebar-button');
 
     // --- Tool Specific Elements ---
-    // --- Tool Specific Elements ---
-    // Raw to NBT (Example - adapted below)
-    const rawToNbtInputFile_UI = document.getElementById('raw-to-nbt-input-file'); // Need unique names for DOM refs
-    const rawToNbtDropArea_UI = document.getElementById('raw-to-nbt-drop-area');
-    // ... other Raw to NBT UI elements ...
-
+    // Raw to NBT
+    const rawToNbtDropArea = document.getElementById('raw-to-nbt-drop-area');
+    const rawToNbtInputFile = document.getElementById('raw-to-nbt-input-file');
+    const rawToNbtGenerateButton = document.getElementById('raw-to-nbt-generate-button');
+    const rawToNbtNbtTitleInput = document.getElementById('raw-to-nbt-nbt-title');
+    const rawToNbtBytesInput = document.getElementById('raw-to-nbt-bytes-per-npc');
+    const rawToNbtPreviewArea = document.getElementById('raw-to-nbt-output-preview');
+    const rawToNbtPreviewTextarea = document.getElementById('raw-to-nbt-preview-text');
+    const rawToNbtDownloadBtn = document.getElementById('raw-to-nbt-download-button');
+    const rawToNbtValidationMsg = document.getElementById('raw-to-nbt-validation-message');
+    const rawToNbtFileNameDisplay = rawToNbtDropArea ? rawToNbtDropArea.querySelector('span.file-name-display') : null;
 
     // Commands to Structure
     const cmdStructDropArea = document.getElementById('cmd-struct-drop-area');
@@ -1016,9 +1021,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const cmdStructPreviewText = document.getElementById('cmd-struct-preview-text');
     const cmdStructDownloadButton = document.getElementById('cmd-struct-download-button');
     const cmdStructValidationMessage = document.getElementById('cmd-struct-validation-message');
-    const cmdStructDropAreaText = cmdStructDropArea ? cmdStructDropArea.querySelector('p') : null;
-    const cmdStructDefaultDropText = cmdStructDropAreaText ? cmdStructDropAreaText.textContent : 'Drag and drop your commands file here, or click to select one';
-
+    const cmdStructFileNameDisplay = cmdStructDropArea ? cmdStructDropArea.querySelector('span.file-name-display') : null;
 
     // NBT to Raw
     const nbtToRawDropArea = document.getElementById('nbt-raw-drop-area');
@@ -1028,14 +1031,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const nbtToRawPreviewText = document.getElementById('nbt-raw-preview-text');
     const nbtToRawDownloadButton = document.getElementById('nbt-raw-download-button');
     const nbtToRawValidationMessage = document.getElementById('nbt-raw-validation-message');
-    // const nbtToRawDropAreaText = nbtToRawDropArea ? nbtToRawDropArea.querySelector('p') : null; // Handled by generic setup
-    // const nbtToRawDefaultDropText = nbtToRawDropAreaText ? nbtToRawDropAreaText.textContent : 'Drag & drop NBT/TXT file or click';
-    const nbtToRawFilterCheckbox = document.getElementById('nbt-raw-filter-checkbox'); // Reference to the checkbox
+    const nbtToRawFilterCheckbox = document.getElementById('nbt-raw-filter-checkbox');
+    const nbtToRawFileNameDisplay = nbtToRawDropArea ? nbtToRawDropArea.querySelector('span.file-name-display') : null;
+
 
     // Schematic to Commands
     const schemDropArea = document.getElementById('schem-drop-area');
     const schemInputFile = document.getElementById('schem-input-file');
-    const schemFileNameDisplay = document.getElementById('schem-file-name');
+    const schemFileNameDisplay = document.getElementById('schem-file-name'); // Specific ID here
     const schemGenerateButton = document.getElementById('schem-generate-button');
     const schemOutputNameInput = document.getElementById('schem-outputName');
     const schemIncludeAirCheckbox = document.getElementById('schem-includeAir');
@@ -1043,7 +1046,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const schemOffsetYInput = document.getElementById('schem-offsetY');
     const schemOffsetZInput = document.getElementById('schem-offsetZ');
     const schemStatusDiv = document.getElementById('schem-status');
-    const schemDefaultDropText = 'Drag and drop your .schem file here, or click to select';
 
     // Java to Bedrock
     const javaBedrockDropArea = document.getElementById('java-bedrock-drop-area');
@@ -1053,34 +1055,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const javaBedrockPreviewText = document.getElementById('java-bedrock-preview-text');
     const javaBedrockDownloadButton = document.getElementById('java-bedrock-download-button');
     const javaBedrockValidationMessage = document.getElementById('java-bedrock-validation-message');
-    const javaBedrockDropAreaText = javaBedrockDropArea ? javaBedrockDropArea.querySelector('p') : null;
-    const javaBedrockDefaultDropText = javaBedrockDropAreaText ? javaBedrockDropAreaText.textContent : 'Drag and drop your Java commands file here, or click to select one';
+    const javaBedrockFileNameDisplay = javaBedrockDropArea ? javaBedrockDropArea.querySelector('span.file-name-display') : null;
 
 
     // --- Helper Functions ---
     function showValidationMessage(element, message, type = 'error') {
         if (!element) return;
         element.textContent = message;
-        element.className = 'validation-message'; // Reset classes
+        // Reset classes, then add the appropriate one
+        element.className = 'validation-message'; // Base class
+        element.classList.add(type); // Add 'error', 'success', or 'info' class
         element.style.display = 'block';
 
-        if (type === 'success') {
-            element.style.backgroundColor = 'rgba(0, 255, 0, 0.1)';
-            element.style.borderLeftColor = '#2ecc71';
-            element.style.color = '#2ecc71';
-        } else if (type === 'info') {
-            element.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
-            element.style.borderLeftColor = '#3498db';
-            element.style.color = '#3498db';
-        } else { // error
-            element.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
-            element.style.borderLeftColor = '#ff3b3b';
-            element.style.color = '#ff6b6b';
-        }
-
-        // Auto-hide non-info messages
+        // Auto-hide non-info messages after 5 seconds
         if (type !== 'info') {
             setTimeout(() => {
+                 // Only hide if the message hasn't changed in the meantime
                  if (element.style.display === 'block' && element.textContent === message) {
                      element.style.display = 'none';
                  }
@@ -1092,20 +1082,25 @@ document.addEventListener('DOMContentLoaded', function() {
         if (element) {
             element.textContent = '';
             element.style.display = 'none';
+            element.className = 'validation-message'; // Reset classes
         }
     }
 
     // Generic Drop Area Setup
-    function setupDropArea(dropArea, fileInput, defaultTextElement, defaultTextContent) {
-        if (!dropArea || !fileInput || !defaultTextElement) return;
+    function setupDropAreaListeners(dropArea, fileInput, fileNameDisplayElement) {
+        if (!dropArea || !fileInput || !fileNameDisplayElement) {
+             console.warn("setupDropAreaListeners: Missing required elements for", fileInput?.id);
+             return;
+        }
 
         const clickHandler = () => {
+            // Allow selecting a new file even if one is loaded
             fileInput.click();
         };
         dropArea.addEventListener('click', clickHandler);
 
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
+            dropArea.addEventListener(eventName, preventDefaults, false);
         });
         ['dragenter', 'dragover'].forEach(eventName => {
             dropArea.addEventListener(eventName, () => dropArea.classList.add('dragover'), false);
@@ -1118,72 +1113,81 @@ document.addEventListener('DOMContentLoaded', function() {
             const dt = e.dataTransfer;
             const files = dt.files;
             if (files.length > 0) {
-                fileInput.files = files; // Assign files to the hidden input
-                // Manually trigger the 'change' event on the file input
+                fileInput.files = files; // Assign dropped files to the hidden input
+                // Manually trigger the 'change' event for consistency with clicks
                 const event = new Event('change', { bubbles: true });
                 fileInput.dispatchEvent(event);
             }
         }, false);
 
-        // Update drop area text when file is selected (via click or drop)
-        fileInput.addEventListener('change', () => {
-             if (fileInput.files.length > 0) {
-                 // Basic validation (can be overridden by specific tool handler)
-                const file = fileInput.files[0];
-                const allowedTypes = fileInput.accept.split(',');
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    }
+
+    // Generic File Input Change Handler Setup
+    function setupFileInputHandler(fileInput, fileContentVarSetter, fileNameDisplayElement, validationElement, allowedTypes = [], handleFileReadFunc) {
+         if (!fileInput || !fileNameDisplayElement || !validationElement) {
+             console.warn("setupFileInputHandler: Missing required elements for", fileInput?.id);
+             return;
+         }
+        const defaultDisplayText = 'No file selected';
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
                 let isValid = false;
-                if (allowedTypes.includes('.txt') && file.type === 'text/plain') isValid = true;
-                if (allowedTypes.includes('.mcstructure') && file.name.toLowerCase().endsWith('.mcstructure')) isValid = true;
-                 if (allowedTypes.includes('.nbt') && file.name.toLowerCase().endsWith('.nbt')) isValid = true; // Added NBT
-                 if (allowedTypes.includes('.schem') && file.name.toLowerCase().endsWith('.schem')) isValid = true; // Added schem
-                 if (allowedTypes.includes('.schematic') && file.name.toLowerCase().endsWith('.schematic')) isValid = true; // Added schematic
+                const lowerName = file.name.toLowerCase();
+                const fileType = file.type;
 
-
-                if (isValid || fileInput.accept === '') { // Accept if valid or no specific type required
-                    defaultTextElement.textContent = file.name;
-                    // Trigger file reading if needed (handled by specific tool listeners)
+                if (allowedTypes.length === 0) {
+                    isValid = true; // No specific types required
                 } else {
-                     defaultTextElement.textContent = `Invalid file type: ${file.name}`;
-                     fileInput.value = ''; // Clear invalid selection
+                    isValid = allowedTypes.some(type => {
+                        if (type.startsWith('.')) {
+                             return lowerName.endsWith(type); // Check extension
+                        } else {
+                             return fileType === type; // Check MIME type
+                        }
+                    });
                 }
-             } else {
-                 defaultTextElement.textContent = defaultTextContent;
-             }
+
+                if (isValid) {
+                    fileNameDisplayElement.textContent = file.name + ' loaded.';
+                    hideValidationMessage(validationElement);
+                    // Call the specific file reading function for this tool
+                    handleFileReadFunc(file, fileContentVarSetter);
+                } else {
+                    showValidationMessage(validationElement, `Invalid file type. Expected: ${allowedTypes.join(', ')}`, 'error');
+                    fileNameDisplayElement.textContent = defaultDisplayText;
+                    fileContentVarSetter(''); // Clear content variable
+                    fileInput.value = ''; // Clear the invalid file selection
+                }
+            } else {
+                // No file selected (e.g., user cancelled)
+                fileNameDisplayElement.textContent = defaultDisplayText;
+                fileContentVarSetter('');
+                hideValidationMessage(validationElement);
+            }
         });
     }
 
-     function resetDropArea(dropArea, fileInput, defaultTextElement, defaultTextContent) {
-        if (dropArea && fileInput && defaultTextElement) {
-            dropArea.innerHTML = `<i class="fas fa-file-upload"></i><p>${defaultTextContent}</p><input type="file" id="${fileInput.id}" accept="${fileInput.accept}" class="file-input">`;
-            // Re-attach listeners to the new input element
-            const newFileInput = document.getElementById(fileInput.id);
-            const newDropAreaText = dropArea.querySelector('p');
-            if (newFileInput && newDropAreaText) {
-                setupDropArea(dropArea, newFileInput, newDropAreaText, defaultTextContent);
-                // Also re-attach specific tool's 'change' listener if necessary
-                attachFileInputChangeListener(newFileInput.id);
-            }
-        }
-     }
-
-    // --- Navigation Logic ---
+     // --- Navigation Logic ---
     if (hamburgerButton && sidebar) {
         hamburgerButton.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent click from closing immediately if sidebar overlaps button
+            e.stopPropagation();
             sidebar.classList.toggle('active');
         });
     }
-
     if (closeSidebarButton && sidebar) {
          closeSidebarButton.addEventListener('click', () => {
              sidebar.classList.remove('active');
          });
      }
-
-    // Close sidebar if clicking outside of it
     document.addEventListener('click', (e) => {
-        if (sidebar && sidebar.classList.contains('active') && !sidebar.contains(e.target) && e.target !== hamburgerButton) {
-            sidebar.classList.remove('active');
+        if (sidebar && sidebar.classList.contains('active') && !sidebar.contains(e.target) && e.target !== hamburgerButton && !hamburgerButton.contains(e.target)) {
+             sidebar.classList.remove('active');
         }
     });
 
@@ -1192,38 +1196,37 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const targetToolId = link.getAttribute('data-tool');
 
-            // Hide all tool sections
             toolSections.forEach(section => {
-                section.style.display = 'none';
-                 section.classList.remove('active');
+                section.classList.remove('active');
+                section.style.display = 'none'; // Ensure it's hidden
             });
+            sidebarLinks.forEach(s_link => s_link.classList.remove('active')); // Deactivate all sidebar links
 
-            // Show the target tool section
             const targetSection = document.getElementById(targetToolId);
             if (targetSection) {
-                targetSection.style.display = 'block';
                 targetSection.classList.add('active');
+                targetSection.style.display = 'block'; // Ensure it's visible
+                link.classList.add('active'); // Activate clicked sidebar link
                 console.log(`Switched to tool: ${targetToolId}`);
             } else {
                 console.error(`Tool section with ID ${targetToolId} not found.`);
             }
 
-            // Hide sidebar after selection
-            if (sidebar) {
-                sidebar.classList.remove('active');
-            }
-
-            // Optional: Update header/title? (Add element if needed)
-            // document.getElementById('current-tool-title').textContent = link.textContent;
+            if (sidebar) sidebar.classList.remove('active');
         });
     });
 
-    // --- Initialization: Hide all tool sections except the first one ---
+    // --- Initialization: Activate the first tool ---
     toolSections.forEach((section, index) => {
         if (index === 0) {
-            section.style.display = 'block'; // Show the first tool by default
-             section.classList.add('active');
+            section.classList.add('active');
+            section.style.display = 'block';
+            // Also activate the corresponding sidebar link
+            const firstLinkId = section.id;
+            const firstLink = document.querySelector(`.tool-link[data-tool="${firstLinkId}"]`);
+            if (firstLink) firstLink.classList.add('active');
         } else {
+            section.classList.remove('active');
             section.style.display = 'none';
         }
     });
@@ -1233,299 +1236,194 @@ document.addEventListener('DOMContentLoaded', function() {
     //                TOOL SPECIFIC EVENT LISTENERS               //
     // ========================================================== //
 
-    // --- Raw to NBT Listeners (Exact structure from user provided file) ---
-
-    // Get DOM elements using specific IDs from index.html
-    const rawToNbtDropArea = document.getElementById('raw-to-nbt-drop-area');
-    const rawToNbtInputFile = document.getElementById('raw-to-nbt-input-file');
-    const rawToNbtGenerateButton = document.getElementById('raw-to-nbt-generate-button');
-    const rawToNbtNbtTitleInput = document.getElementById('raw-to-nbt-nbt-title');
-    const rawToNbtBytesInput = document.getElementById('raw-to-nbt-bytes-per-npc');
-    const rawToNbtPreviewArea = document.getElementById('raw-to-nbt-output-preview');
-    const rawToNbtPreviewTextarea = document.getElementById('raw-to-nbt-preview-text');
-    const rawToNbtDownloadBtn = document.getElementById('raw-to-nbt-download-button');
-    const rawToNbtValidationMsg = document.getElementById('raw-to-nbt-validation-message');
-
-    // File reading function (Specific to RawToNbt as defined in the provided script)
-    function rawToNbtReadFile(file) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        rawToNbtFileContent = e.target.result; // Use the global variable
-        const dropAreaTextElement = rawToNbtDropArea.querySelector('span.file-name-display'); // Use the span for filename
-        if (dropAreaTextElement) {
-             dropAreaTextElement.textContent = `${file.name} loaded. Ready to generate NBT.`;
-        }
-        rawToNbtPreviewArea.style.display = 'none'; // Hide previous results
-        rawToNbtDownloadBtn.disabled = true;
-        hideValidationMessage(rawToNbtValidationMsg); // Use shared helper
-
-      };
-      reader.onerror = function() {
-           showValidationMessage(rawToNbtValidationMsg, 'Error reading file.', 'error'); // Use shared helper
-           rawToNbtResetTool(); // Call reset function
-      };
-      reader.readAsText(file);
-    }
-
-    // Function to attach drop area events (Specific to RawToNbt)
-    function rawToNbtAttachDropAreaEvents() {
-      if(rawToNbtDropArea) {
-        // Prevent default drag behaviors
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-          rawToNbtDropArea.addEventListener(eventName, preventDefaults, false);
-          document.body.addEventListener(eventName, preventDefaults, false);
-        });
-        ['dragenter', 'dragover'].forEach(eventName => {
-          rawToNbtDropArea.addEventListener(eventName, highlight, false);
-        });
-        ['dragleave', 'drop'].forEach(eventName => {
-          rawToNbtDropArea.addEventListener(eventName, unhighlight, false);
-        });
-        rawToNbtDropArea.addEventListener('drop', handleDrop, false);
-
-        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
-        function highlight() { rawToNbtDropArea.classList.add('dragover'); }
-        function unhighlight() { rawToNbtDropArea.classList.remove('dragover'); }
-
-        function handleDrop(e) {
-          const dt = e.dataTransfer;
-          const files = dt.files;
-          if (files.length > 0) {
-               const file = files[0];
-               // Check if it's a text file
-               if (file.type === "" || file.type === "text/plain" || file.name.toLowerCase().endsWith('.txt')) {
-                   rawToNbtInputFile.files = files; // Assign to input
-                   const event = new Event('change', { bubbles: true });
-                   rawToNbtInputFile.dispatchEvent(event); // Trigger change for consistency
-                   // rawToNbtReadFile(file); // Reading now handled by input change
-               } else {
-                   showValidationMessage(rawToNbtValidationMsg, 'Please drop a .txt file.'); // Use shared helper
-               }
-           }
-        }
-      }
-    }
-
-    // Function to reset the Raw to NBT section (Specific to RawToNbt)
-    function rawToNbtResetTool() {
-        rawToNbtFileContent = '';
-        const dropAreaTextElement = rawToNbtDropArea.querySelector('span.file-name-display');
-        if(dropAreaTextElement) dropAreaTextElement.textContent = 'No file selected';
-        rawToNbtPreviewArea.style.display = 'none';
-        rawToNbtNbtTitleInput.value = '';
-        rawToNbtBytesInput.value = '2000';
-        hideValidationMessage(rawToNbtValidationMsg);
-        rawToNbtDownloadBtn.disabled = true;
-        rawToNbtInputFile.value = ''; // Clear file input
-
-        // Reattach click handler for the drop area
-        if (rawToNbtDropArea) {
-            rawToNbtDropArea.onclick = function() {
-                rawToNbtInputFile.click();
-            };
-        }
-        // Reattach drag/drop
-        rawToNbtAttachDropAreaEvents();
-    }
-
-
-    // Initial setup for Raw to NBT file input click and change
-    if(rawToNbtDropArea && rawToNbtInputFile) {
-        rawToNbtDropArea.onclick = function() {
-            // Allow reset only if output is visible? Or always allow selection?
-            // For robustness, always allow selecting a new file.
-             if (rawToNbtPreviewArea.style.display === 'block') {
-                 // Optionally reset the state if a file was processed
-                 console.log("RawToNBT: Resetting tool state on drop area click after generation.");
-                 rawToNbtResetTool(); // Reset before triggering click
-                 // rawToNbtInputFile.click(); // Should happen anyway due to reset? Test this.
-             }
-            rawToNbtInputFile.click();
-        };
-
-        rawToNbtInputFile.onchange = function(e) { // Use onchange for direct assignment
-            const file = e.target.files[0];
-            if (file) {
-                if (file.type === "" || file.type === "text/plain" || file.name.toLowerCase().endsWith('.txt')) {
-                    rawToNbtReadFile(file);
-                } else {
-                    showValidationMessage(rawToNbtValidationMsg, 'Please select a .txt file.');
-                    rawToNbtResetTool(); // Reset on invalid file type
-                }
-            } else {
-                 rawToNbtResetTool(); // Reset if selection is cancelled
-            }
-        };
-    }
-
-    // Initially attach drag and drop event listeners for Raw to NBT
-    rawToNbtAttachDropAreaEvents();
-
-    // Generate NBT button event listener (Specific to RawToNbt)
-    if(rawToNbtGenerateButton) {
-      rawToNbtGenerateButton.addEventListener('click', () => {
-        if (!rawToNbtFileContent) { // Check specific global variable
-          showValidationMessage(rawToNbtValidationMsg, 'Please select a file.'); // Use specific validation element
-          return;
-        }
-
-        const nbtTitle = rawToNbtNbtTitleInput.value.trim(); // Use specific input element
-        const maxBytesInput = rawToNbtBytesInput.value.trim(); // Use specific input element
-        let maxBytes;
-        try {
-          maxBytes = parseInt(maxBytesInput, 10);
-          if (isNaN(maxBytes) || maxBytes <= 500) throw new Error("Value too small"); // Adjusted minimum
-        } catch(e) {
-          showValidationMessage(rawToNbtValidationMsg, 'Please enter a valid positive integer (> 500) for Max Bytes per NPC.');
-          return;
-        }
-        hideValidationMessage(rawToNbtValidationMsg); // Hide previous messages
-
-        try {
-            showValidationMessage(rawToNbtValidationMsg, 'Generating NBT...', 'info');
-             // --- NBT Generation Logic (using functions defined above) ---
-             const commands = getUsefulCommands(rawToNbtFileContent);
-             const { normalCommands, equalsCommands } = separateCommands(commands);
-             const nbtName = nbtTitle || 'Blacklight NBT'; // Use default if no title
-
-             let nbtData = getBlockOpener(nbtName);
-             let curSec = 0;
-             let combinedNpcData = [];
-
-             if (normalCommands.length > 0) {
-                 const result = processNpcCommandsByBytes(normalCommands, maxBytes, nbtName, curSec, commandJoinerNormal, false);
-                 if (result.npcData) combinedNpcData.push(result.npcData);
-                 curSec += result.count;
-             }
-
-             if (equalsCommands.length > 0) {
-                 const result = processNpcCommandsByBytes(equalsCommands, maxBytes, nbtName, curSec, commandJoinerEquals, true);
-                  if (result.npcData) combinedNpcData.push(result.npcData);
-                 // curSec += result.count; // Not needed if last
-             }
-
-             nbtData += combinedNpcData.join(',');
-             nbtData += getBlockCloser();
-             // --- End NBT Generation Logic ---
-
-
-             // Display preview
-             rawToNbtPreviewTextarea.value = nbtData;
-             rawToNbtPreviewArea.style.display = 'block';
-             rawToNbtDownloadBtn.disabled = false;
-             hideValidationMessage(rawToNbtValidationMsg); // Hide info message
-             showValidationMessage(rawToNbtValidationMsg, 'NBT generated successfully!', 'success');
-
-        } catch (e) {
-             console.error("RawToNBT Generation Error:", e);
-             hideValidationMessage(rawToNbtValidationMsg);
-             showValidationMessage(rawToNbtValidationMsg, `Error generating NBT: ${e.message}`, 'error');
-             rawToNbtPreviewArea.style.display = 'none';
-             rawToNbtDownloadBtn.disabled = true;
-         }
-      });
-    }
-
-    // Download button event listener (Specific to RawToNbt)
-    if(rawToNbtDownloadBtn) {
-      rawToNbtDownloadBtn.addEventListener('click', () => {
-        const nbtText = rawToNbtPreviewTextarea.value;
-        if (!nbtText) {
-            showValidationMessage(rawToNbtValidationMsg, 'No NBT data generated to download.');
-            return;
-        }
-        const nbtTitle = rawToNbtNbtTitleInput.value.trim();
-        const nbtName = nbtTitle || 'Blacklight_NBT'; // Use underscore
-        const fileName = `Horion ${nbtName} Build.txt`; // Match original naming
-
-        const blob = new Blob([nbtText], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showValidationMessage(rawToNbtValidationMsg, 'NBT file download started.', 'success');
-      });
-    }
-    // --- End Raw to NBT Listeners ---
-
-    // --- Commands to Structure Listeners ---
-     function handleCmdStructFileRead(file) {
+    // --- Generic File Reader (Text) ---
+    function readFileAsText(file, contentSetter) {
         const reader = new FileReader();
         reader.onload = function(e) {
-            cmdStructFileContent = e.target.result;
-            if (cmdStructDropAreaText) cmdStructDropAreaText.textContent = `${file.name} loaded.`;
-            hideValidationMessage(cmdStructValidationMessage);
-            cmdStructOutputPreview.style.display = 'none'; // Hide old results
-            cmdStructDownloadButton.disabled = true;
-            console.log("CmdStruct: File read successfully.");
+            contentSetter(e.target.result);
+            console.log(`${file.name} read successfully (Text).`);
         };
-        reader.onerror = function() {
-            showValidationMessage(cmdStructValidationMessage, 'Error reading file.', 'error');
-            resetDropArea(cmdStructDropArea, cmdStructInputFile, cmdStructDropAreaText, cmdStructDefaultDropText);
-            cmdStructFileContent = '';
+        reader.onerror = function(e) {
+            console.error(`Error reading file ${file.name}:`, e);
+            contentSetter(''); // Clear content on error
+             // Show error in the specific tool's validation area (handled by caller)
         };
         reader.readAsText(file);
     }
 
-     if (cmdStructDropArea && cmdStructInputFile && cmdStructDropAreaText) {
-        setupDropArea(cmdStructDropArea, cmdStructInputFile, cmdStructDropAreaText, cmdStructDefaultDropText);
-         cmdStructInputFile.addEventListener('change', () => {
-             if (cmdStructInputFile.files.length > 0) {
-                 const file = cmdStructInputFile.files[0];
-                 if (file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt')) {
-                     handleCmdStructFileRead(file);
-                 } else {
-                     showValidationMessage(cmdStructValidationMessage, 'Please select a .txt file.', 'error');
-                     resetDropArea(cmdStructDropArea, cmdStructInputFile, cmdStructDropAreaText, cmdStructDefaultDropText);
-                     cmdStructFileContent = '';
-                 }
-             } else {
-                 cmdStructFileContent = '';
-             }
+    // --- Generic File Reader (ArrayBuffer) ---
+     function readFileAsArrayBuffer(file, objectSetter) { // Renamed setter for clarity
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            // Store the File object itself, not the content directly yet
+            objectSetter(file);
+            console.log(`${file.name} selected (ArrayBuffer pending read).`);
+        };
+        reader.onerror = function(e) {
+            console.error(`Error preparing file ${file.name} for reading:`, e);
+            objectSetter(null); // Clear object on error
+            // Show error (handled by caller)
+        };
+        // We don't read immediately, just store the file object.
+        // Reading happens on button click for ArrayBuffer types.
+         reader.readAsArrayBuffer(file); // Read but don't store globally yet
+    }
+
+
+    // --- Raw to NBT Setup ---
+    if(rawToNbtDropArea) {
+        setupDropAreaListeners(rawToNbtDropArea, rawToNbtInputFile, rawToNbtFileNameDisplay);
+        setupFileInputHandler(
+            rawToNbtInputFile,
+            (content) => { rawToNbtFileContent = content; },
+            rawToNbtFileNameDisplay,
+            rawToNbtValidationMsg,
+            ['.txt', 'text/plain'],
+            readFileAsText
+        );
+    }
+    if(rawToNbtGenerateButton) {
+        rawToNbtGenerateButton.addEventListener('click', () => {
+            if (!rawToNbtFileContent) {
+                showValidationMessage(rawToNbtValidationMsg, 'Please select a raw commands text file first.', 'error');
+                return;
+            }
+            const nbtTitle = rawToNbtNbtTitleInput.value.trim();
+            const maxBytesInput = rawToNbtBytesInput.value.trim();
+            let maxBytes;
+            try {
+                maxBytes = parseInt(maxBytesInput, 10);
+                if (isNaN(maxBytes) || maxBytes <= 500) throw new Error("Value must be > 500");
+            } catch(e) {
+                showValidationMessage(rawToNbtValidationMsg, `Invalid Max Bytes per NPC: ${e.message}`, 'error');
+                return;
+            }
+            hideValidationMessage(rawToNbtValidationMsg);
+            showValidationMessage(rawToNbtValidationMsg, 'Generating NBT...', 'info');
+
+            // Use setTimeout to allow UI update before potentially long processing
+            setTimeout(() => {
+                try {
+                    const commands = getUsefulCommands(rawToNbtFileContent);
+                    // Separation logic might need adjustment if escapeQuotesForNbt changes equals signs
+                    const { normalCommands, equalsCommands } = separateCommands(commands);
+                    const nbtName = nbtTitle || 'Blacklight NBT';
+
+                    let combinedNpcData = [];
+                    let npcCount = 0;
+
+                    // Process normal commands (assuming specific joiner/format needed)
+                    if (normalCommands.length > 0) {
+                         const result = processNpcCommandsByBytes(normalCommands, maxBytes, nbtName, npcCount, commandJoinerNormal);
+                         if (result.npcData) combinedNpcData.push(result.npcData);
+                         npcCount += result.count;
+                    }
+                    // Process equals commands (if any, assuming different joiner/format)
+                    if (equalsCommands.length > 0) {
+                        // Assuming equals commands need the same processing logic, just check content
+                        console.warn("RawToNBT: 'Equals' command separation heuristic might be inaccurate. Processing all as normal.");
+                         const result = processNpcCommandsByBytes(equalsCommands, maxBytes, nbtName, npcCount, commandJoinerNormal); // Use same joiner for now
+                         if (result.npcData) combinedNpcData.push(result.npcData);
+                         npcCount += result.count;
+                    }
+
+
+                    let nbtOutput = getBlockOpener(nbtName);
+                    nbtOutput += combinedNpcData.join(','); // Join NPC blocks with commas
+                    nbtOutput += getBlockCloser();
+
+                    rawToNbtPreviewTextarea.value = nbtOutput;
+                    rawToNbtPreviewArea.style.display = 'block';
+                    rawToNbtDownloadBtn.disabled = false;
+                    hideValidationMessage(rawToNbtValidationMsg);
+                    showValidationMessage(rawToNbtValidationMsg, `NBT generated with ${npcCount} NPC blocks.`, 'success');
+
+                } catch (e) {
+                    console.error("RawToNBT Generation Error:", e);
+                    hideValidationMessage(rawToNbtValidationMsg);
+                    showValidationMessage(rawToNbtValidationMsg, `Error generating NBT: ${e.message}`, 'error');
+                    rawToNbtPreviewArea.style.display = 'none';
+                    rawToNbtDownloadBtn.disabled = true;
+                }
+            }, 50); // 50ms delay
+        });
+    }
+     if(rawToNbtDownloadBtn) {
+        rawToNbtDownloadBtn.addEventListener('click', () => {
+            const nbtText = rawToNbtPreviewTextarea.value;
+            if (!nbtText) {
+                showValidationMessage(rawToNbtValidationMsg, 'No NBT data generated to download.', 'error');
+                return;
+            }
+            const nbtTitle = rawToNbtNbtTitleInput.value.trim() || 'Blacklight_NBT';
+            const fileName = `Horion ${nbtTitle.replace(/\s+/g, '_')} Build.txt`;
+
+            const blob = new Blob([nbtText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showValidationMessage(rawToNbtValidationMsg, 'NBT file download started.', 'success');
         });
     }
 
+    // --- Commands to Structure Setup ---
+    if(cmdStructDropArea) {
+        setupDropAreaListeners(cmdStructDropArea, cmdStructInputFile, cmdStructFileNameDisplay);
+        setupFileInputHandler(
+            cmdStructInputFile,
+            (content) => { cmdStructFileContent = content; },
+            cmdStructFileNameDisplay,
+            cmdStructValidationMessage,
+            ['.txt', 'text/plain'],
+            readFileAsText
+        );
+    }
     if (cmdStructConvertButton) {
         cmdStructConvertButton.addEventListener('click', () => {
             if (!cmdStructFileContent) {
-                showValidationMessage(cmdStructValidationMessage, 'Please select a file with Minecraft commands.', 'error');
+                showValidationMessage(cmdStructValidationMessage, 'Please select a commands text file first.', 'error');
                 return;
             }
             hideValidationMessage(cmdStructValidationMessage);
-            showValidationMessage(cmdStructValidationMessage, 'Processing commands...', 'info');
+            showValidationMessage(cmdStructValidationMessage, 'Processing commands and converting...', 'info');
+            cmdStructConvertButton.disabled = true;
 
-            // Use timeout for UI responsiveness during potentially long processing
             setTimeout(() => {
                 try {
+                    // 1. Process commands into the block map
                     const processResult = processCmdStructCommands(cmdStructFileContent);
                     if (!processResult.blocksFound) {
-                         hideValidationMessage(cmdStructValidationMessage); // Clear info
-                        showValidationMessage(cmdStructValidationMessage, 'No valid blocks found in commands. Check file format.', 'error');
+                        hideValidationMessage(cmdStructValidationMessage);
+                        showValidationMessage(cmdStructValidationMessage, 'No valid blocks found in commands. Check file format or content.', 'error');
                         cmdStructOutputPreview.style.display = 'none';
+                        commandsToStructureData = null; // Clear previous data
                         return;
                     }
 
-                    const result = convertToStructureData();
+                    // 2. Convert the block map to structure data object
+                    const result = convertToStructureData(); // This function now updates commandsToStructureData internally
                     if (!result.success) {
-                        hideValidationMessage(cmdStructValidationMessage); // Clear info
-                        showValidationMessage(cmdStructValidationMessage, result.message || 'Failed to convert structure data.', 'error');
+                        hideValidationMessage(cmdStructValidationMessage);
+                        showValidationMessage(cmdStructValidationMessage, result.message || 'Failed to convert processed blocks to structure data.', 'error');
                         cmdStructOutputPreview.style.display = 'none';
+                        commandsToStructureData = null; // Clear data on failure
                         return;
                     }
 
-                    // Display results
-                    const previewJson = JSON.stringify(result.data, null, 2);
-                    cmdStructPreviewText.textContent = previewJson;
+                    // Display results (using the data stored in commandsToStructureData)
+                    const previewJson = JSON.stringify(commandsToStructureData, null, 2); // Pretty print JSON
+                    cmdStructPreviewText.textContent = previewJson; // Use textContent for preformatted text
 
                     // Remove old stats if present
                     const existingStats = cmdStructPreviewContainer.querySelector('.alert.alert-info');
                     if (existingStats) existingStats.remove();
 
-                    // Add new stats
+                    // Add new stats using data from the result object
                     const statsHtml = `
                     <div class="alert alert-info mt-3 mb-3">
                       <p class="mb-1"><strong>Structure Dimensions:</strong> ${result.dimensions.width}×${result.dimensions.height}×${result.dimensions.depth}</p>
@@ -1533,43 +1431,47 @@ document.addEventListener('DOMContentLoaded', function() {
                       <p class="mb-1"><strong>Actual Block Count:</strong> ${result.blockCount}</p>
                       <p class="mb-0"><strong>Unique Block Types (Palette Size):</strong> ${result.paletteCount}</p>
                     </div>`;
+                    // Insert stats before the preview text area
                     cmdStructPreviewText.insertAdjacentHTML('beforebegin', statsHtml);
 
                     cmdStructOutputPreview.style.display = 'block';
                     cmdStructDownloadButton.disabled = false;
-                    hideValidationMessage(cmdStructValidationMessage); // Clear info
-                    showValidationMessage(cmdStructValidationMessage, 'Conversion successful. Preview generated.', 'success');
+                    hideValidationMessage(cmdStructValidationMessage);
+                    showValidationMessage(cmdStructValidationMessage, `Conversion successful. Found ${result.blockCount} blocks.`, 'success');
 
                 } catch (e) {
-                    console.error("CmdStruct Error:", e);
-                     hideValidationMessage(cmdStructValidationMessage); // Clear info
+                    console.error("CmdStruct Conversion Error:", e);
+                    hideValidationMessage(cmdStructValidationMessage);
                     showValidationMessage(cmdStructValidationMessage, `Error during conversion: ${e.message}`, 'error');
                     cmdStructOutputPreview.style.display = 'none';
                     cmdStructDownloadButton.disabled = true;
+                    commandsToStructureData = null; // Clear data on error
+                } finally {
+                    cmdStructConvertButton.disabled = false; // Re-enable button
                 }
             }, 50); // 50ms timeout
         });
     }
-
-     if (cmdStructDownloadButton) {
+    if (cmdStructDownloadButton) {
         cmdStructDownloadButton.addEventListener('click', () => {
-            if (!commandsToStructureData || !commandsToStructureData.size || commandsToStructureData.size.some(dim => dim === 0)) {
-                showValidationMessage(cmdStructValidationMessage, 'No structure data generated. Convert commands first.', 'error');
+            if (!commandsToStructureData || !commandsToStructureData.size || commandsToStructureData.size.some(dim => dim <= 0)) {
+                showValidationMessage(cmdStructValidationMessage, 'No valid structure data generated or structure is empty. Convert commands first.', 'error');
                 return;
             }
-            hideValidationMessage(cmdStructValidationMessage); // Clear previous messages
+            hideValidationMessage(cmdStructValidationMessage);
+            showValidationMessage(cmdStructValidationMessage, 'Creating NBT buffer for .mcstructure file...', 'info');
+            cmdStructDownloadButton.disabled = true;
 
-            showValidationMessage(cmdStructValidationMessage, 'Creating NBT buffer...', 'info');
 
-            setTimeout(() => { // Timeout for UI update
+            setTimeout(() => { // Timeout for UI update before potentially slow NBT creation
                 try {
-                    const nbtBuffer = createNbtBuffer(commandsToStructureData); // Use shared NBT function
+                    const nbtBuffer = createNbtBuffer(commandsToStructureData);
                     console.log(`CmdStruct: NBT buffer created, size: ${nbtBuffer.byteLength} bytes.`);
 
                     const blob = new Blob([nbtBuffer], { type: 'application/octet-stream' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
-                    const fileName = 'structure.mcstructure'; // Standard name
+                    const fileName = 'converted_structure.mcstructure'; // Standard name
                     a.href = url;
                     a.download = fileName;
                     document.body.appendChild(a);
@@ -1577,60 +1479,33 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
 
-                    hideValidationMessage(cmdStructValidationMessage); // Clear info
-                    showValidationMessage(cmdStructValidationMessage, 'Structure file download started!', 'success');
+                    hideValidationMessage(cmdStructValidationMessage);
+                    showValidationMessage(cmdStructValidationMessage, '.mcstructure file download started!', 'success');
 
                 } catch (bufferError) {
                     console.error("CmdStruct: Error creating/downloading .mcstructure file:", bufferError);
-                    hideValidationMessage(cmdStructValidationMessage); // Clear info
-                    showValidationMessage(cmdStructValidationMessage, `Error: ${bufferError.message}. Structure might be too large.`, 'error');
+                    hideValidationMessage(cmdStructValidationMessage);
+                    showValidationMessage(cmdStructValidationMessage, `Error creating structure file: ${bufferError.message}.`, 'error');
+                } finally {
+                     cmdStructDownloadButton.disabled = false; // Re-enable button
                 }
             }, 100); // 100ms timeout for NBT generation
         });
     }
 
-    // --- NBT to Raw Listeners ---
-    function handleNbtToRawFileRead(file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            nbtToRawFileContent = e.target.result;
-             const fileNameDisplay = nbtToRawDropArea.querySelector('span.file-name-display');
-            if (fileNameDisplay) fileNameDisplay.textContent = `${file.name} loaded.`;
-            hideValidationMessage(nbtToRawValidationMessage);
-            nbtToRawOutputPreview.style.display = 'none'; // Hide old results
-            nbtToRawDownloadButton.disabled = true;
-            console.log("NBTtoRaw: File read successfully.");
-        };
-        reader.onerror = function() {
-            showValidationMessage(nbtToRawValidationMessage, 'Error reading file.', 'error');
-             const fileNameDisplay = nbtToRawDropArea.querySelector('span.file-name-display');
-             if (fileNameDisplay) fileNameDisplay.textContent = 'Error reading file';
-             nbtToRawInputFile.value = '';
-            nbtToRawFileContent = '';
-        };
-        reader.readAsText(file); // Reads as text for pattern matching
-    }
 
-     if (nbtToRawDropArea && nbtToRawInputFile) {
-        const dropAreaTextElement = nbtToRawDropArea.querySelector('p');
-        const defaultText = dropAreaTextElement ? dropAreaTextElement.textContent : '';
-         const fileNameDisplay = nbtToRawDropArea.querySelector('span.file-name-display');
-        setupDropArea(nbtToRawDropArea, nbtToRawInputFile, fileNameDisplay, 'No file selected');
-         nbtToRawInputFile.addEventListener('change', () => {
-             if (nbtToRawInputFile.files.length > 0) {
-                const file = nbtToRawInputFile.files[0];
-                const lowerName = file.name.toLowerCase();
-                if (file.type === 'text/plain' || lowerName.endsWith('.txt') || lowerName.endsWith('.nbt') || lowerName.endsWith('.mcstructure')) {
-                    handleNbtToRawFileRead(file);
-                } else {
-                    nbtToRawFileContent = '';
-                }
-             } else {
-                 nbtToRawFileContent = '';
-             }
-        });
+    // --- NBT to Raw Setup ---
+     if(nbtToRawDropArea) {
+        setupDropAreaListeners(nbtToRawDropArea, nbtToRawInputFile, nbtToRawFileNameDisplay);
+        setupFileInputHandler(
+            nbtToRawInputFile,
+            (content) => { nbtToRawFileContent = content; },
+            nbtToRawFileNameDisplay,
+            nbtToRawValidationMessage,
+            ['.nbt', '.mcstructure', '.txt', 'text/plain'], // Allow relevant text-based formats
+            readFileAsText
+        );
     }
-
      if (nbtToRawExtractButton) {
         nbtToRawExtractButton.addEventListener('click', () => {
             if (!nbtToRawFileContent) {
@@ -1640,200 +1515,198 @@ document.addEventListener('DOMContentLoaded', function() {
             hideValidationMessage(nbtToRawValidationMessage);
             nbtToRawOutputPreview.style.display = 'none';
             nbtToRawPreviewText.value = '';
+            nbtToRawExtractButton.disabled = true;
 
-            try {
-                showValidationMessage(nbtToRawValidationMessage, 'Extracting commands...', 'info');
-                const data = nbtToRawFileContent;
-                const filterActive = nbtToRawFilterCheckbox.checked;
+            showValidationMessage(nbtToRawValidationMessage, 'Extracting commands from text...', 'info');
 
-                const cmdLineMatches = Array.from(data.matchAll(nbtToRawPrimaryRegex), match => match[1]);
-                const fallbackMatches = Array.from(data.matchAll(nbtToRawFallbackRegex), match => match[0]);
-                const uniqueRawCommands = [...new Set([...cmdLineMatches, ...fallbackMatches])];
-                let processedCommands = nbtToRawPostProcessCommands(uniqueRawCommands);
+             setTimeout(() => {
+                 try {
+                    const data = nbtToRawFileContent;
+                    const filterActive = nbtToRawFilterCheckbox.checked;
 
-                let finalCommands = processedCommands;
-                if (filterActive) {
-                    console.log("NBTtoRaw: Filtering for fill/setblock commands.");
-                    finalCommands = processedCommands.filter(cmd => {
-                        const trimmedCmd = cmd.trim().toLowerCase();
-                        return trimmedCmd.startsWith('fill ') || trimmedCmd.startsWith('setblock ');
-                    });
-                    console.log(`NBTtoRaw: Filtered down to ${finalCommands.length} commands.`);
-                }
+                    // Find matches using both regexes
+                    const cmdLineMatches = Array.from(data.matchAll(nbtToRawPrimaryRegex), match => match[1]);
+                    const fallbackMatches = Array.from(data.matchAll(nbtToRawFallbackRegex), match => match[0]); // Use full match here
 
-                if (finalCommands.length > 0) {
-                    nbtToRawPreviewText.value = finalCommands.join('\n');
+                    // Combine and let post-processing handle uniqueness and cleaning
+                    const rawCommands = [...cmdLineMatches, ...fallbackMatches];
+
+                    let processedCommands = nbtToRawPostProcessCommands(rawCommands);
+
+                    let finalCommands = processedCommands;
+                    if (filterActive) {
+                        console.log("NBTtoRaw: Filtering for fill/setblock commands.");
+                        finalCommands = processedCommands.filter(cmd => {
+                            const trimmedCmd = cmd.trim().toLowerCase();
+                            return trimmedCmd.startsWith('fill ') || trimmedCmd.startsWith('setblock ');
+                        });
+                        console.log(`NBTtoRaw: Filtered down to ${finalCommands.length} commands.`);
+                    }
+
+                    if (finalCommands.length > 0) {
+                        nbtToRawPreviewText.value = finalCommands.join('\n');
+                        hideValidationMessage(nbtToRawValidationMessage);
+                        showValidationMessage(nbtToRawValidationMessage, `Extracted ${finalCommands.length} unique commands${filterActive ? ' (filtered)' : ''}.`, 'success');
+                    } else {
+                        nbtToRawPreviewText.value = `// No commands matching the patterns${filterActive ? ' (and filter)' : ''} were found in the text file.`;
+                        hideValidationMessage(nbtToRawValidationMessage);
+                        showValidationMessage(nbtToRawValidationMessage, `No matching commands found${filterActive ? ' after filtering' : ''}. Check file content and format.`, 'info');
+                    }
+                    nbtToRawOutputPreview.style.display = 'block';
+                    nbtToRawDownloadButton.disabled = (finalCommands.length === 0);
+
+                } catch (err) {
+                    console.error("NBTtoRaw Extraction Error:", err);
                     hideValidationMessage(nbtToRawValidationMessage);
-                    showValidationMessage(nbtToRawValidationMessage, `Extracted ${finalCommands.length} unique commands${filterActive ? ' (filtered)' : ''}.`, 'success');
-                } else {
-                    nbtToRawPreviewText.value = `// No commands matching the patterns${filterActive ? ' (and filter)' : ''} were found.`;
-                    hideValidationMessage(nbtToRawValidationMessage);
-                    showValidationMessage(nbtToRawValidationMessage, `No matching commands found${filterActive ? ' after filtering' : ''}.`, 'info');
-                }
-                nbtToRawOutputPreview.style.display = 'block';
-                nbtToRawDownloadButton.disabled = (finalCommands.length === 0);
-
-
-            } catch (err) {
-                console.error("NBTtoRaw Error:", err);
-                hideValidationMessage(nbtToRawValidationMessage);
-                showValidationMessage(nbtToRawValidationMessage, `An error occurred during processing: ${err.message}`, 'error');
-                nbtToRawOutputPreview.style.display = 'none';
-                nbtToRawDownloadButton.disabled = true;
-            }
+                    showValidationMessage(nbtToRawValidationMessage, `An error occurred during command extraction: ${err.message}`, 'error');
+                    nbtToRawOutputPreview.style.display = 'none';
+                    nbtToRawDownloadButton.disabled = true;
+                } finally {
+                     nbtToRawExtractButton.disabled = false;
+                 }
+            }, 50); // 50ms delay
         });
     }
-
      if (nbtToRawDownloadButton) {
         nbtToRawDownloadButton.addEventListener('click', () => {
             const textToSave = nbtToRawPreviewText.value;
             if (!textToSave || textToSave.startsWith("// No commands matching")) {
-                showValidationMessage(nbtToRawValidationMessage, "There is no valid command content to download.", 'error');
+                showValidationMessage(nbtToRawValidationMessage, "No valid command content to download.", 'error');
                 return;
             }
 
-            const originalFileName = nbtToRawInputFile.files[0]?.name || 'commands';
-            const baseName = originalFileName.replace(/\.[^/.]+$/, "");
+            const originalFileName = nbtToRawInputFile.files[0]?.name || 'extracted_commands';
+            const baseName = originalFileName.replace(/\.[^/.]+$/, ""); // Remove extension
             const blob = new Blob([textToSave], { type: 'text/plain;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
-            a.download = `${baseName}_extracted_commands.txt`;
+            a.download = `${baseName}_raw_commands.txt`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
             console.log(`NBTtoRaw: Downloaded extracted commands as ${a.download}`);
-            showValidationMessage(nbtToRawValidationMessage, 'Commands file download started.', 'success');
+            showValidationMessage(nbtToRawValidationMessage, 'Raw commands file download started.', 'success');
         });
     }
 
-    // --- Schematic to Commands Listeners ---
-    function displaySchemStatus(message, type = 'info') {
+    // --- Schematic to Commands Setup ---
+     function displaySchemStatus(message, type = 'info') {
         if (!schemStatusDiv) return;
         schemStatusDiv.textContent = message;
         schemStatusDiv.className = 'status-message'; // Reset classes
-        if (type === 'error') {
-            schemStatusDiv.classList.add('error');
-        } else if (type === 'success') {
-            schemStatusDiv.classList.add('success');
-        }
+        schemStatusDiv.classList.add(type); // Add 'error', 'success', or 'info'
         schemStatusDiv.style.display = 'block';
     }
      function hideSchemStatus() {
         if(schemStatusDiv) schemStatusDiv.style.display = 'none';
      }
 
-    function handleSchemFileSelect(file) {
-         if (!file.name.toLowerCase().endsWith('.schem') && !file.name.toLowerCase().endsWith('.schematic')) {
-            displaySchemStatus(`Invalid file type: ${file.name}. Please select a .schem or .schematic file.`, 'error');
-            if (schemFileNameDisplay) schemFileNameDisplay.textContent = 'Invalid file type';
-            if (schemInputFile) schemInputFile.value = ''; // Clear the input
-            schemFileObject = null;
-            return;
-        }
-        schemFileObject = file;
-        if (schemFileNameDisplay) schemFileNameDisplay.textContent = file.name;
-        hideSchemStatus();
-        console.log("Schem: File selected:", file.name);
-    }
-
-    if (schemDropArea && schemInputFile && schemFileNameDisplay) {
-         // Slightly different setup as it uses a span for filename
-         schemDropArea.addEventListener('click', () => schemInputFile.click());
-
-         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            schemDropArea.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
-         });
-         ['dragenter', 'dragover'].forEach(eventName => {
-             schemDropArea.addEventListener(eventName, () => schemDropArea.classList.add('dragover'), false);
-         });
-         ['dragleave', 'drop'].forEach(eventName => {
-             schemDropArea.addEventListener(eventName, () => schemDropArea.classList.remove('dragover'), false);
-         });
-
-         schemDropArea.addEventListener('drop', (e) => {
-             const dt = e.dataTransfer;
-             const files = dt.files;
-             if (files.length > 0) {
-                 handleSchemFileSelect(files[0]); // Use handler directly
-             }
-         }, false);
-
-         schemInputFile.addEventListener('change', () => {
-             if (schemInputFile.files.length > 0) {
-                 handleSchemFileSelect(schemInputFile.files[0]);
-             } else {
-                 schemFileNameDisplay.textContent = 'No file selected';
-                 schemFileObject = null;
-             }
+     if (schemDropArea && schemInputFile && schemFileNameDisplay) {
+         setupDropAreaListeners(schemDropArea, schemInputFile, schemFileNameDisplay);
+         // Special handler setup because we need the File object, not content yet
+         schemInputFile.addEventListener('change', (e) => {
+             const file = e.target.files[0];
+             if (file) {
+                const lowerName = file.name.toLowerCase();
+                if (lowerName.endsWith('.schem') || lowerName.endsWith('.schematic')) {
+                     schemFileObject = file; // Store the File object
+                     schemFileNameDisplay.textContent = file.name + ' selected.';
+                     hideSchemStatus();
+                } else {
+                    displaySchemStatus('Invalid file type. Please select a .schem or .schematic file.', 'error');
+                    schemFileNameDisplay.textContent = 'No file selected';
+                    schemInputFile.value = ''; // Clear invalid selection
+                    schemFileObject = null;
+                }
+            } else {
+                schemFileNameDisplay.textContent = 'No file selected';
+                schemFileObject = null;
+                hideSchemStatus();
+            }
          });
      }
-
      if (schemGenerateButton) {
         schemGenerateButton.addEventListener('click', () => {
-            const file = schemFileObject; // Use stored file object
-            const outputName = schemOutputNameInput.value.trim() || 'Commands';
+            const file = schemFileObject; // Use the stored File object
+            const outputNameBase = schemOutputNameInput.value.trim() || 'SchemCommands';
             const includeAir = schemIncludeAirCheckbox.checked;
-            const offsetX = parseInt(schemOffsetXInput.value) || 0;
-            const offsetY = parseInt(schemOffsetYInput.value) || 0;
-            const offsetZ = parseInt(schemOffsetZInput.value) || 0;
+            const offsetX = parseInt(schemOffsetXInput.value, 10) || 0;
+            const offsetY = parseInt(schemOffsetYInput.value, 10) || 0;
+            const offsetZ = parseInt(schemOffsetZInput.value, 10) || 0;
 
             if (!file) {
                 displaySchemStatus('Please select a .schem or .schematic file first!', 'error');
                 return;
             }
 
-            displaySchemStatus('Reading file...', 'info');
+            // Disable button, show status
+            displaySchemStatus('Reading schematic file...', 'info');
             schemGenerateButton.disabled = true;
 
             const reader = new FileReader();
             reader.onload = function(event) {
                 try {
-                    displaySchemStatus('Decompressing and parsing schematic...', 'info');
-                    const compressedData = new Uint8Array(event.target.result);
+                    displaySchemStatus('Decompressing and parsing NBT...', 'info');
+                    const fileData = new Uint8Array(event.target.result);
                     let nbtDataBuffer;
 
-                    if (compressedData[0] === 0x1f && compressedData[1] === 0x8b) {
-                        const decompressedData = pako.inflate(compressedData); // Pako dependency
+                    // Check for Gzip magic numbers (0x1f, 0x8b)
+                    if (fileData.length >= 2 && fileData[0] === 0x1f && fileData[1] === 0x8b) {
+                        if (typeof pako === 'undefined') {
+                            throw new Error("Pako library is not loaded. Cannot decompress Gzipped schematic.");
+                        }
+                        console.log("Schem: Detected Gzip compression. Inflating...");
+                        const decompressedData = pako.inflate(fileData);
                         nbtDataBuffer = decompressedData.buffer;
+                        console.log(`Schem: Decompressed size: ${nbtDataBuffer.byteLength} bytes`);
                     } else {
-                         console.warn("Schem: File not Gzipped. Attempting uncompressed parse.");
-                         nbtDataBuffer = compressedData.buffer;
+                         console.log("Schem: File does not appear to be Gzipped. Attempting direct NBT parse.");
+                         nbtDataBuffer = fileData.buffer.slice(fileData.byteOffset, fileData.byteOffset + fileData.byteLength); // Ensure correct ArrayBuffer view
                     }
+
+                     if (!nbtDataBuffer || nbtDataBuffer.byteLength === 0) {
+                         throw new Error("Failed to get valid data buffer after potential decompression.");
+                     }
 
                     const schematicNbt = loadSchematicNBT(nbtDataBuffer); // Use shared NBT reader
 
-                    let width, height, length, dataContainer;
-                    // Determine dimensions and data source (root or nested)
+                    // Extract dimensions (handle potential variations in structure)
+                    let width, height, length, dataContainerNbt;
                     if (typeof schematicNbt.Width === 'number' && typeof schematicNbt.Height === 'number' && typeof schematicNbt.Length === 'number') {
-                        width = schematicNbt.Width; height = schematicNbt.Height; length = schematicNbt.Length; dataContainer = schematicNbt;
-                    } else if (schematicNbt.Schematic && typeof schematicNbt.Schematic === 'object' && typeof schematicNbt.Schematic.Width === 'number') {
-                         width = schematicNbt.Schematic.Width; height = schematicNbt.Schematic.Height; length = schematicNbt.Schematic.Length; dataContainer = schematicNbt.Schematic;
-                         console.log("Schem: Detected nested dimensions (Sponge V3 style?)");
+                        width = schematicNbt.Width; height = schematicNbt.Height; length = schematicNbt.Length; dataContainerNbt = schematicNbt;
+                    } else if (schematicNbt.Schematic && typeof schematicNbt.Schematic.Width === 'number') { // Handle nested structure
+                         width = schematicNbt.Schematic.Width; height = schematicNbt.Schematic.Height; length = schematicNbt.Schematic.Length; dataContainerNbt = schematicNbt.Schematic;
+                         console.log("Schem: Detected nested NBT structure for dimensions/data.");
                     } else {
-                        console.error("Schem Parsed NBT:", schematicNbt);
-                        throw new Error("Missing dimension tags (Width, Height, Length) in schematic NBT.");
+                        console.error("Schem NBT Structure:", JSON.stringify(Object.keys(schematicNbt)));
+                        throw new Error("Could not find standard dimension tags (Width, Height, Length) in schematic NBT.");
                     }
 
+                    // Validate dimensions
                     if (width <= 0 || height <= 0 || length <= 0) {
-                        throw new Error(`Invalid dimensions found: W=${width}, H=${height}, L=${length}`);
+                        throw new Error(`Invalid dimensions found in schematic: W=${width}, H=${height}, L=${length}`);
                     }
                     const dims = [width, height, length];
                     const offset = [offsetX, offsetY, offsetZ];
 
-                    displaySchemStatus(`Generating commands for ${width}x${height}x${length} schematic...`, 'info');
+                    displaySchemStatus(`Generating commands for ${width}x${height}x${length} structure...`, 'info');
 
-                    const commands = generateSchemCommands(dataContainer, dims, offset, includeAir); // Use schem-specific generator
+                    // Call the command generation function
+                    const commands = generateSchemCommands(dataContainerNbt, dims, offset, includeAir);
 
-                    if (commands.length === 0) {
-                        displaySchemStatus('Warning: No commands generated. Schematic might be empty or only contain air.', 'info');
-                        schemGenerateButton.disabled = false;
-                        return;
+                    if (commands.length === 0 && processedBlockCount > 0) { // Check if blocks were processed but no commands generated (e.g., all air and includeAir=false)
+                        displaySchemStatus('Warning: Schematic processed, but no commands generated (possibly only air).', 'info');
+                        return; // Don't trigger download for empty file
+                    }
+                    if (commands.length === 0 && processedBlockCount === 0) {
+                         displaySchemStatus('Warning: No blocks processed and no commands generated. Is the schematic empty?', 'info');
+                         return;
                     }
 
-                    // Create and Download File
+                    // Create and Download Text File
                     const now = new Date();
                     const timestamp = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
                     const commandsText = commands.join('\n');
@@ -1841,7 +1714,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `${outputName}_${timestamp}.txt`;
+                    a.download = `${outputNameBase}_${timestamp}.txt`;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
@@ -1850,69 +1723,55 @@ document.addEventListener('DOMContentLoaded', function() {
                     displaySchemStatus(`Success! ${commands.length} commands generated and download started.`, 'success');
 
                 } catch (e) {
-                    console.error("Schem Error processing:", e);
+                    console.error("Schematic Processing Error:", e);
                     displaySchemStatus(`Error: ${e.message}`, 'error');
                 } finally {
-                    schemGenerateButton.disabled = false;
+                    schemGenerateButton.disabled = false; // Re-enable button
                 }
             }; // end reader.onload
 
             reader.onerror = () => {
-                displaySchemStatus('Error reading the selected file.', 'error');
+                displaySchemStatus('Error reading the selected schematic file.', 'error');
                 schemGenerateButton.disabled = false;
             };
+
+            // Read the file selected by the user as an ArrayBuffer
             reader.readAsArrayBuffer(file);
         });
     }
 
-    // --- Java to Bedrock Listeners ---
-    function handleJavaBedrockFileRead(file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            javaBedrockFileContent = e.target.result;
-            if (javaBedrockDropAreaText) javaBedrockDropAreaText.textContent = `${file.name} loaded.`;
-            hideValidationMessage(javaBedrockValidationMessage);
-            javaBedrockOutputPreview.style.display = 'none'; // Hide old results
-            javaBedrockDownloadButton.disabled = true;
-            console.log("Java->Bedrock: File read successfully.");
-        };
-        reader.onerror = function() {
-            showValidationMessage(javaBedrockValidationMessage, 'Error reading file.', 'error');
-            resetDropArea(javaBedrockDropArea, javaBedrockInputFile, javaBedrockDropAreaText, javaBedrockDefaultDropText);
-            javaBedrockFileContent = '';
-        };
-        reader.readAsText(file);
-    }
 
-     if (javaBedrockDropArea && javaBedrockInputFile && javaBedrockDropAreaText) {
-        setupDropArea(javaBedrockDropArea, javaBedrockInputFile, javaBedrockDropAreaText, javaBedrockDefaultDropText);
-         javaBedrockInputFile.addEventListener('change', () => {
-            if (javaBedrockInputFile.files.length > 0) {
-                const file = javaBedrockInputFile.files[0];
-                 if (file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt')) {
-                    handleJavaBedrockFileRead(file);
-                 } else {
-                    showValidationMessage(javaBedrockValidationMessage, 'Please select a .txt file.', 'error');
-                    resetDropArea(javaBedrockDropArea, javaBedrockInputFile, javaBedrockDropAreaText, javaBedrockDefaultDropText);
-                    javaBedrockFileContent = '';
-                 }
-            } else {
-                 javaBedrockFileContent = '';
-            }
-        });
+    // --- Java to Bedrock Setup (CLIENT-SIDE) ---
+     if(javaBedrockDropArea) {
+        setupDropAreaListeners(javaBedrockDropArea, javaBedrockInputFile, javaBedrockFileNameDisplay);
+        setupFileInputHandler(
+            javaBedrockInputFile,
+            (content) => { javaBedrockFileContent = content; },
+            javaBedrockFileNameDisplay,
+            javaBedrockValidationMessage,
+            ['.txt', 'text/plain'],
+            readFileAsText
+        );
     }
-
-    if (javaBedrockTranslateButton) {
-        javaBedrockTranslateButton.addEventListener('click', async () => {
+     if (javaBedrockTranslateButton) {
+        javaBedrockTranslateButton.addEventListener('click', async () => { // Keep async for the translator functions
             if (!javaBedrockFileContent) {
                 showValidationMessage(javaBedrockValidationMessage, 'Please select a file with Java commands first.', 'error');
                 return;
             }
-            hideValidationMessage(javaBedrockValidationMessage);
 
+             // Check if the translator function and maps are loaded
+             if (typeof translateCommands !== 'function' || typeof window.javaToUniversalMaps === 'undefined' || typeof window.universalToBedrockMaps === 'undefined') {
+                 console.error("Translator function or mapping data not found. Ensure translator.js and mapping scripts are loaded correctly before script.js.");
+                 showValidationMessage(javaBedrockValidationMessage, 'Translation components not loaded. Check console.', 'error');
+                 return;
+             }
+
+
+            hideValidationMessage(javaBedrockValidationMessage);
             const commands = javaBedrockFileContent.split(/\r?\n/).filter(cmd => cmd.trim().length > 0);
             if (commands.length === 0) {
-                showValidationMessage(javaBedrockValidationMessage, 'File contains no valid commands.', 'error');
+                showValidationMessage(javaBedrockValidationMessage, 'File contains no valid commands to translate.', 'info');
                 return;
             }
 
@@ -1920,43 +1779,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Show loading state
                 javaBedrockTranslateButton.disabled = true;
                 javaBedrockTranslateButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Translating...';
-                showValidationMessage(javaBedrockValidationMessage, 'Translating commands...', 'info');
+                showValidationMessage(javaBedrockValidationMessage, `Translating ${commands.length} Java commands...`, 'info');
 
-                const response = await fetch('/translate', { // Fetch from the server endpoint
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ commands }),
-                });
+                // --- Direct Client-Side Translation ---
+                 // Use a short timeout to allow the UI to update *before* the potentially blocking translation work
+                 await new Promise(resolve => setTimeout(resolve, 50));
 
-                hideValidationMessage(javaBedrockValidationMessage); // Clear info message
+                 // Call the translation function directly from translator.js
+                 const { translatedCommands, errors } = await translateCommands(commands);
+                 // ^^^ This function MUST be available globally or imported if using modules
 
-                if (!response.ok) {
-                    let errorMsg = `Translation failed: ${response.statusText} (${response.status})`;
-                    try {
-                        const errorData = await response.json();
-                        errorMsg = errorData.error || errorMsg;
-                    } catch (e) { /* Ignore if response not JSON */ }
-                    throw new Error(errorMsg);
-                }
+                 hideValidationMessage(javaBedrockValidationMessage); // Clear info message
 
-                const result = await response.json();
+                 if (errors && errors.length > 0) {
+                     console.warn("Java->Bedrock Translation Errors:", errors);
+                     // Display first few errors
+                     const errorSummary = errors.slice(0, 5).join('; ');
+                     showValidationMessage(javaBedrockValidationMessage, `Translation completed with ${errors.length} errors. Check console for details. First few: ${errorSummary}`, 'error'); // Use 'error' type if there were issues
+                 } else if (translatedCommands.length > 0) {
+                      showValidationMessage(javaBedrockValidationMessage, 'Translation completed successfully!', 'success');
+                 } else {
+                     showValidationMessage(javaBedrockValidationMessage, 'Translation finished, but no commands were successfully translated.', 'info');
+                 }
 
-                if (!result.translatedCommands || !Array.isArray(result.translatedCommands)) {
-                    throw new Error('Invalid response format from server');
-                }
-
-                // Display translated commands
-                javaBedrockPreviewText.value = result.translatedCommands.join('\n');
-                javaBedrockOutputPreview.style.display = 'block';
-                javaBedrockDownloadButton.disabled = result.translatedCommands.length === 0;
-                 showValidationMessage(javaBedrockValidationMessage, 'Translation completed successfully!', 'success');
-                // Optionally display errors from result.errors if the server sends them back
+                 // Display translated commands
+                 javaBedrockPreviewText.value = translatedCommands.join('\n');
+                 javaBedrockOutputPreview.style.display = 'block';
+                 javaBedrockDownloadButton.disabled = translatedCommands.length === 0;
 
             } catch (error) {
-                console.error('Java->Bedrock Translation error:', error);
-                 hideValidationMessage(javaBedrockValidationMessage); // Clear info message
-                showValidationMessage(javaBedrockValidationMessage, error.message || 'An unexpected error occurred during translation.', 'error');
+                console.error('Java->Bedrock Client-Side Translation error:', error);
+                hideValidationMessage(javaBedrockValidationMessage); // Clear info message
+                showValidationMessage(javaBedrockValidationMessage, `Translation Error: ${error.message}`, 'error');
                 javaBedrockOutputPreview.style.display = 'none';
+                javaBedrockDownloadButton.disabled = true;
             } finally {
                 // Reset button state
                 javaBedrockTranslateButton.disabled = false;
@@ -1964,8 +1820,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-
-    if (javaBedrockDownloadButton) {
+     if (javaBedrockDownloadButton) {
         javaBedrockDownloadButton.addEventListener('click', () => {
             const commandsText = javaBedrockPreviewText.value;
             if (!commandsText) {
@@ -1973,7 +1828,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             const originalFileName = javaBedrockInputFile.files[0]?.name || 'java_commands';
-            const baseName = originalFileName.replace(/\.[^/.]+$/, "");
+            const baseName = originalFileName.replace(/\.[^/.]+$/, ""); // Remove extension
             const fileName = `${baseName}_translated_bedrock.txt`;
 
             const blob = new Blob([commandsText], { type: 'text/plain;charset=utf-8' });
@@ -1989,29 +1844,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-     // --- Helper to re-attach file input change listeners after reset ---
-     // This is needed because replacing innerHTML removes old listeners.
-     function attachFileInputChangeListener(inputId) {
-         const inputElement = document.getElementById(inputId);
-         if (!inputElement) return;
 
-         if (inputId === 'raw-to-nbt-input-file') {
-             inputElement.addEventListener('change', () => { /* Re-attach specific logic */ });
-         } else if (inputId === 'cmd-struct-input-file') {
-            inputElement.addEventListener('change', () => { /* Re-attach specific logic */ });
-         } else if (inputId === 'nbt-to-raw-input-file') {
-            inputElement.addEventListener('change', () => { /* Re-attach specific logic */ });
-         } else if (inputId === 'schem-input-file') {
-            inputElement.addEventListener('change', () => { /* Re-attach specific logic */ });
-         } else if (inputId === 'java-bedrock-input-file') {
-            inputElement.addEventListener('change', () => { /* Re-attach specific logic */ });
-         }
-         // Add the actual file reading logic back inside these handlers, similar to initial setup
-          console.warn(`Re-attaching listener for ${inputId} - Make sure file handling logic is inside!`);
-
-     }
-
-    console.log("Blacklight NBT script initialized.");
+    console.log("Blacklight NBT script initialized successfully.");
 
 }); // End DOMContentLoaded
 

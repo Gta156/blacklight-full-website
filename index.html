@@ -252,7 +252,8 @@
              margin-bottom: 25px;
              color: var(--neon-teal);
              font-weight: 600;
-             animation: neon-glow 2s infinite; /* Keep consistent glow */
+             /* Removing animation for less distraction, can be added back if needed */
+             /* animation: neon-glow 2s infinite; */
          }
 
         /* Drop Area Styles */
@@ -309,9 +310,10 @@
              display: block;
              margin-top: 8px;
              font-size: 0.9rem;
-             color: var(--text-muted);
-             font-style: italic;
+             color: var(--text-light); /* Make filename clearer */
+             font-style: normal; /* Less muted */
              word-break: break-all; /* Prevent long names breaking layout */
+             min-height: 1.2em; /* Ensure space even when empty */
          }
 
         /* Input Styles (Generalized) */
@@ -343,6 +345,9 @@
              transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
              cursor: pointer;
              vertical-align: middle; /* Align checkbox better with label */
+             height: 1.2em; /* Explicit height */
+             width: 2.5em; /* Explicit width for switch */
+             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%28255,255,255,.25%29'/%3e%3c/svg%3e"); /* Dim circle */
          }
         .form-check-input:checked {
              background-color: var(--neon-blue);
@@ -371,6 +376,8 @@
             overflow: hidden;
             z-index: 1;
             cursor: pointer;
+            min-width: 180px; /* Ensure buttons have a decent minimum width */
+            text-align: center; /* Center text/icon */
         }
         .btn-cyber::before {
             content: '';
@@ -379,13 +386,13 @@
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(45deg, var(--neon-purple), var(--neon-blue));
+            background: linear-gradient(45deg, var(--neon-purple), var(--neon-teal)); /* Changed hover gradient */
             transition: left 0.6s ease;
             z-index: -1;
         }
         .btn-cyber:hover::before { left: 0; }
         .btn-cyber:hover {
-            box-shadow: 0 0 20px rgba(14, 130, 241, 0.5);
+            box-shadow: 0 0 20px rgba(0, 238, 255, 0.5); /* Teal glow on hover */
             transform: translateY(-2px);
         }
          .btn-cyber:disabled {
@@ -439,7 +446,7 @@
             overflow: auto; /* Both x and y scroll */
             line-height: 1.4;
             tab-size: 4;
-            color: var(--neon-teal); /* Default color */
+            color: var(--text-light); /* Default color */
             border: 1px solid var(--border-color-base);
         }
         .code-textarea:focus {
@@ -449,18 +456,21 @@
         }
         /* Specific colors for different tool textareas */
         #raw-to-nbt-preview-text { color: var(--neon-teal); }
-        #cmd-struct-preview-text { color: var(--neon-purple); }
-        #nbt-to-raw-preview-text { color: var(--neon-blue); } /* Changed from green */
-        /* Schem to Commands - uses default .code-textarea color */
+        #cmd-struct-preview-text { color: var(--text-medium); } /* Less intense color for JSON */
+        #nbt-to-raw-preview-text { color: var(--neon-blue); }
+        #schem-to-commands-preview-text { color: var(--neon-purple); } /* Schem doesn't have preview, but set for consistency */
         #java-bedrock-preview-text { color: var(--neon-blue); }
 
         /* Validation & Status Message Styles */
         .validation-message, .status-message {
             display: none; /* Hide by default */
             margin-top: 20px;
-            padding: 12px 15px; /* Adjusted padding */
+            padding: 12px 15px;
             border-radius: 8px;
-            border-left: 4px solid; /* Border color set by type */
+            border-left-width: 4px;
+            border-left-style: solid;
+            font-size: 0.95rem;
+            line-height: 1.4;
         }
         /* Error Type */
         .validation-message.error, .status-message.error {
@@ -480,6 +490,7 @@
             border-left-color: var(--info-border);
             color: var(--info-color);
         }
+
 
         /* Info Section Styles (Generalized) */
         .info-section {
@@ -532,6 +543,7 @@
              margin-top: 15px;
              padding: 8px 15px;
              font-size: 0.9rem;
+             min-width: 150px; /* Smaller min-width for info card buttons */
          }
 
         /* Footer Styles */
@@ -574,6 +586,7 @@
 
         /* File Input Styling */
         .file-input {
+            /* Visually hide the default input but keep accessible */
             position: absolute !important; width: 1px !important; height: 1px !important;
             padding: 0 !important; margin: -1px !important; overflow: hidden !important;
             clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important;
@@ -585,11 +598,12 @@
             border-color: rgba(52, 152, 219, 0.3) !important;
             color: #aed6f1 !important; /* Lighter blue for text */
             border-left: 3px solid var(--neon-blue) !important;
-            margin: 15px;
+            margin: 15px 0; /* Only top/bottom margin */
             padding: 10px 15px;
             border-radius: 5px;
+            font-size: 0.9rem;
         }
-        .alert-info p { font-size: 0.9rem; margin-bottom: 5px !important; }
+        .alert-info p { margin-bottom: 5px !important; }
         .alert-info strong { color: #e0f2f7; /* Even lighter color */ }
 
 
@@ -597,6 +611,7 @@
         @media (max-width: 992px) {
              .sidebar { width: 250px; right: -270px; } /* Adjust width and hidden position */
              .sidebar.active { right: 0; }
+             .tool-card h3.tool-title { font-size: 1.3rem; }
         }
         @media (max-width: 768px) {
             .hero-title { font-size: 1.8rem; }
@@ -606,13 +621,21 @@
             .hamburger-button { font-size: 1.6rem; }
              main { padding-top: 60px; } /* Adjust for slightly smaller navbar */
              .sidebar { padding-top: 70px; }
+             .code-textarea { min-height: 150px; max-height: 350px; }
         }
          @media (max-width: 576px) {
              .tool-card, .output-preview, .info-card { padding: 20px; }
              .drop-area { padding: 30px 20px; }
-             .btn-cyber { padding: 10px 20px; font-size: 0.9rem; }
+             .drop-area i { font-size: 2.2rem; margin-bottom: 10px;}
+             .drop-area p { font-size: 0.9rem; }
+             .drop-area span.file-name-display { font-size: 0.8rem;}
+             .btn-cyber { padding: 10px 20px; font-size: 0.9rem; min-width: 150px; }
              .footer-links a { margin: 0 8px; display: block; margin-bottom: 5px; }
              .social-links { margin-top: 10px; }
+             .hero-title { font-size: 1.6rem; }
+             .hero-subtitle { font-size: 0.9rem; }
+             .tool-card h3.tool-title { font-size: 1.2rem; }
+             .form-check-label { font-size: 0.9rem;}
          }
 
     </style>
@@ -652,14 +675,15 @@
     <div class="sidebar" id="sidebar">
          <div class="sidebar-header">
              <h5 class="sidebar-title">Tools Menu</h5>
-             <button class="close-sidebar-button" id="close-sidebar-button" aria-label="Close menu">×</button>
+             <button class="close-sidebar-button" id="close-sidebar-button" aria-label="Close menu">×</button> <!-- Use × for better 'x' -->
          </div>
         <ul>
-            <li><a href="#" class="tool-link active" data-tool="tool-raw-to-nbt"><i class="fas fa-file-alt"></i> Raw to NBT</a></li> <!-- Mark first as active -->
-            <li><a href="#" class="tool-link" data-tool="tool-cmd-struct"><i class="fas fa-cubes"></i> Commands to Structure</a></li>
-            <li><a href="#" class="tool-link" data-tool="tool-nbt-to-raw"><i class="fas fa-terminal"></i> NBT to Raw</a></li>
-            <li><a href="#" class="tool-link" data-tool="tool-schem-to-commands"><i class="fas fa-file-archive"></i> Schematic to Commands</a></li>
-            <li><a href="#" class="tool-link" data-tool="tool-java-to-bedrock"><i class="fas fa-exchange-alt"></i> Java to Bedrock</a></li>
+            <!-- Ensure data-tool matches section IDs -->
+            <li><a href="#" class="tool-link active" data-tool="tool-raw-to-nbt"><i class="fas fa-file-alt fa-fw"></i> Raw to NBT</a></li> <!-- Mark first as active, use fa-fw -->
+            <li><a href="#" class="tool-link" data-tool="tool-cmd-struct"><i class="fas fa-cubes fa-fw"></i> Commands to Structure</a></li>
+            <li><a href="#" class="tool-link" data-tool="tool-nbt-to-raw"><i class="fas fa-terminal fa-fw"></i> NBT to Raw</a></li>
+            <li><a href="#" class="tool-link" data-tool="tool-schem-to-commands"><i class="fas fa-file-archive fa-fw"></i> Schematic to Commands</a></li>
+            <li><a href="#" class="tool-link" data-tool="tool-java-to-bedrock"><i class="fas fa-exchange-alt fa-fw"></i> Java to Bedrock</a></li>
             <!-- Add more tools as needed -->
         </ul>
     </div>
@@ -671,7 +695,7 @@
         <section id="tool-raw-to-nbt" class="tool-section active"> <!-- Start with this active -->
             <div class="hero-section">
                 <h1 class="hero-title">RAW TEXT TO NBT CONVERTER</h1>
-                <p class="hero-subtitle">Convert raw text commands into a structured NBT format for specific Minecraft tools.</p>
+                <p class="hero-subtitle">Convert raw text commands into a structured NBT format for specific Minecraft tools (e.g., Horion).</p>
             </div>
             <div class="row">
                 <div class="col-lg-8 mx-auto">
@@ -681,31 +705,31 @@
                             <i class="fas fa-file-upload"></i>
                             <p>Drag and drop your raw commands file here, or click</p>
                             <span class="file-name-display">No file selected</span>
-                            <input type="file" id="raw-to-nbt-input-file" accept=".txt" class="file-input">
+                            <input type="file" id="raw-to-nbt-input-file" accept=".txt,text/plain" class="file-input">
                         </div>
                         <div class="row mt-4">
                             <div class="col-md-6 mb-3">
                                 <label for="raw-to-nbt-nbt-title" class="form-label">NBT Output Name</label>
-                                <input type="text" id="raw-to-nbt-nbt-title" class="form-control" placeholder="e.g., My Build">
+                                <input type="text" id="raw-to-nbt-nbt-title" class="form-control" placeholder="e.g., My Awesome Build">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="raw-to-nbt-bytes-per-npc" class="form-label">Max Bytes Per NPC</label>
-                                <input type="number" id="raw-to-nbt-bytes-per-npc" class="form-control" placeholder="e.g., 2000" value="2000">
+                                <input type="number" id="raw-to-nbt-bytes-per-npc" class="form-control" placeholder="e.g., 30000" value="30000" min="500">
                             </div>
                         </div>
                         <div class="text-center mt-3">
                             <button id="raw-to-nbt-generate-button" class="btn btn-cyber">
-                                <i class="fas fa-cogs me-2"></i>Generate NBT
+                                <i class="fas fa-cogs"></i>Generate NBT
                             </button>
                         </div>
                         <div id="raw-to-nbt-validation-message" class="validation-message"></div>
                     </div>
                     <div id="raw-to-nbt-output-preview" class="output-preview">
-                        <h4><i class="fas fa-code me-2"></i>GENERATED NBT OUTPUT</h4>
+                        <h4><i class="fas fa-code"></i>GENERATED NBT OUTPUT</h4>
                         <textarea id="raw-to-nbt-preview-text" class="code-textarea" rows="10" readonly spellcheck="false" wrap="off"></textarea>
                         <div class="text-center mt-3">
                             <button id="raw-to-nbt-download-button" class="btn btn-cyber" disabled>
-                                <i class="fas fa-download me-2"></i>Download NBT File
+                                <i class="fas fa-download"></i>Download NBT File
                             </button>
                         </div>
                     </div>
@@ -717,7 +741,7 @@
         <section id="tool-cmd-struct" class="tool-section">
             <div class="hero-section">
                 <h1 class="hero-title">COMMANDS TO STRUCTURE</h1>
-                <p class="hero-subtitle">Convert setblock/fill commands into a Bedrock Edition .mcstructure file.</p>
+                <p class="hero-subtitle">Convert setblock/fill commands from a text file into a Bedrock Edition .mcstructure file.</p>
             </div>
             <div class="row">
                 <div class="col-lg-8 mx-auto">
@@ -727,24 +751,24 @@
                             <i class="fas fa-file-alt"></i>
                             <p>Drag and drop your commands file here, or click</p>
                              <span class="file-name-display">No file selected</span>
-                            <input type="file" id="cmd-struct-input-file" accept=".txt" class="file-input">
+                            <input type="file" id="cmd-struct-input-file" accept=".txt,text/plain" class="file-input">
                         </div>
                         <div class="text-center mt-4">
                             <button id="cmd-struct-convert-button" class="btn btn-cyber">
-                                <i class="fas fa-cubes me-2"></i>Convert to Structure
+                                <i class="fas fa-cubes"></i>Convert to Structure
                             </button>
                         </div>
                         <div id="cmd-struct-validation-message" class="validation-message"></div>
                     </div>
                     <div id="cmd-struct-output-preview" class="output-preview">
-                        <h4><i class="fas fa-cube me-2"></i>STRUCTURE PREVIEW</h4>
+                        <h4><i class="fas fa-cube"></i>STRUCTURE PREVIEW & STATS</h4>
                         <div id="cmd-struct-preview-container" class="mb-3">
                             <!-- Stats will be inserted here by JS -->
-                            <textarea id="cmd-struct-preview-text" class="code-textarea" rows="12" readonly spellcheck="false" wrap="off"></textarea>
+                            <textarea id="cmd-struct-preview-text" class="code-textarea" rows="12" readonly spellcheck="false" wrap="off" placeholder="Structure JSON will appear here..."></textarea>
                         </div>
                         <div class="text-center">
                             <button id="cmd-struct-download-button" class="btn btn-cyber" disabled>
-                                <i class="fas fa-download me-2"></i>Download .mcstructure
+                                <i class="fas fa-download"></i>Download .mcstructure
                             </button>
                         </div>
                     </div>
@@ -756,41 +780,40 @@
         <section id="tool-nbt-to-raw" class="tool-section">
             <div class="hero-section">
                 <h1 class="hero-title">NBT TO RAW EXTRACTOR</h1>
-                <p class="hero-subtitle">Extract raw Minecraft commands from text-based NBT files using pattern matching.</p>
+                <p class="hero-subtitle">Extract raw Minecraft commands from text-based files (like .nbt, .mcstructure text dumps, or custom formats) using pattern matching.</p>
             </div>
             <div class="row">
                 <div class="col-lg-8 mx-auto">
                     <div class="tool-card">
-                        <h3 class="tool-title">NBT FILE INPUT</h3>
+                        <h3 class="tool-title">TEXT FILE INPUT</h3>
                         <div id="nbt-raw-drop-area" class="drop-area" title="Accepts text-based .nbt, .mcstructure, or .txt files">
-                             <i class="fas fa-file-code"></i> <!-- Updated Icon -->
-                            <p>Drag & drop NBT/TXT/MCSTRUCTURE file or click</p>
+                             <i class="fas fa-file-code"></i>
+                            <p>Drag & drop text file (NBT/TXT/MCSTRUCTURE) or click</p>
                              <span class="file-name-display">No file selected</span>
-                            <input type="file" id="nbt-raw-input-file" accept=".nbt,.mcstructure,.txt" class="file-input">
+                            <input type="file" id="nbt-raw-input-file" accept=".nbt,.mcstructure,.txt,text/plain" class="file-input">
                         </div>
 
-                         <!-- ADDED CHECKBOX HERE -->
+                         <!-- Filter Checkbox -->
                          <div class="d-flex justify-content-center mt-3 mb-3">
                              <div class="form-check form-switch">
                                  <input class="form-check-input" type="checkbox" role="switch" id="nbt-raw-filter-checkbox">
                                  <label class="form-check-label" for="nbt-raw-filter-checkbox">Show Only Fill/Setblock Commands</label>
                              </div>
                          </div>
-                         <!-- END OF ADDED CHECKBOX -->
 
-                        <div class="text-center mt-2"> <!-- Adjusted margin-top -->
+                        <div class="text-center mt-2">
                             <button id="nbt-raw-extract-button" class="btn btn-cyber">
-                                <i class="fas fa-search me-2"></i>Extract Raw Commands
+                                <i class="fas fa-search"></i>Extract Raw Commands
                             </button>
                         </div>
                         <div id="nbt-raw-validation-message" class="validation-message"></div>
                     </div>
                     <div id="nbt-raw-output-preview" class="output-preview">
-                        <h4><i class="fas fa-terminal me-2"></i>EXTRACTED RAW COMMANDS</h4>
-                        <textarea id="nbt-raw-preview-text" class="code-textarea" rows="10" readonly spellcheck="false" wrap="off"></textarea>
+                        <h4><i class="fas fa-terminal"></i>EXTRACTED RAW COMMANDS</h4>
+                        <textarea id="nbt-raw-preview-text" class="code-textarea" rows="10" readonly spellcheck="false" wrap="off" placeholder="Extracted commands will appear here..."></textarea>
                         <div class="text-center mt-3">
                             <button id="nbt-raw-download-button" class="btn btn-cyber" disabled>
-                                <i class="fas fa-download me-2"></i>Download Raw Commands
+                                <i class="fas fa-download"></i>Download Raw Commands
                             </button>
                         </div>
                     </div>
@@ -799,29 +822,30 @@
                          <div class="row justify-content-center">
                              <div class="col-md-6 mb-4">
                                  <div class="info-card">
-                                     <h3><i class="fas fa-info-circle me-2"></i>How it Works & Limitations</h3>
+                                     <h3><i class="fas fa-info-circle"></i>How it Works & Limitations</h3>
                                      <ul>
-                                         <li>Reads the uploaded text file.</li>
-                                         <li>Uses regular expressions to find text matching:</li>
-                                         <li>   - `"cmd_line": "..."` (handles escaped quotes `\"`)</li>
-                                         <li>   - Standard `setblock` or `fill` commands.</li>
-                                         <li>Cleans up extracted commands (e.g., fixes `\\\"` -> `"`).</li>
-                                         <li>**Limitation:** Only works on text-based files. Cannot parse true binary NBT.</li>
-                                         <li>**Limitation:** Relies on commands matching the expected patterns.</li>
+                                         <li>Reads the uploaded file as plain text.</li>
+                                         <li>Uses regular expressions to find text matching common command patterns:</li>
+                                         <li>   - `"cmd_line": "..."` (handles basic escapes)</li>
+                                         <li>   - Standard `setblock ...` or `fill ...` syntax.</li>
+                                         <li>Attempts to clean up extracted commands (e.g., fix `\\\"` -> `"`).</li>
+                                         <li><strong>Limitation:</strong> Cannot parse true binary NBT. Only works on text representations.</li>
+                                         <li><strong>Limitation:</strong> Relies on commands matching the expected text patterns. Complex or unusual formatting might be missed.</li>
                                      </ul>
                                  </div>
                              </div>
                              <div class="col-md-6 mb-4">
                                  <div class="info-card">
-                                     <h3><i class="fas fa-wrench me-2"></i>Troubleshooting</h3>
+                                     <h3><i class="fas fa-wrench"></i>Troubleshooting</h3>
                                      <ul>
-                                         <li><i>No commands found:</i> File likely doesn't contain commands in the expected text format. Check the file content.</li>
-                                         <li><i>Incorrect commands:</i> Regex patterns might not match your specific file format.</li>
-                                         <li><i>File reading error:</i> Ensure the file is accessible and not corrupted.</li>
+                                         <li><i>No commands found:</i> File likely doesn't contain commands in a recognized text format, or it might be binary. Open the file in a text editor to check.</li>
+                                         <li><i>Incorrect commands extracted:</i> The regex patterns might be too broad or too narrow for your specific file's format.</li>
+                                         <li><i>File reading error:</i> Ensure the file is accessible, not corrupted, and has read permissions.</li>
+                                         <li><i>Checkbox filtering too much:</i> Ensure the desired commands actually start with `fill` or `setblock`.</li>
                                      </ul>
                                      <div class="mt-3 text-center">
                                          <a href="https://discord.gg/3pZvgq4XPq" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-cyber">
-                                             <i class="fab fa-discord me-2"></i>Join Community
+                                             <i class="fab fa-discord"></i>Join Community
                                          </a>
                                      </div>
                                  </div>
@@ -836,7 +860,7 @@
         <section id="tool-schem-to-commands" class="tool-section">
             <div class="hero-section">
                  <h1 class="hero-title">SCHEMATIC TO COMMANDS</h1>
-                 <p class="hero-subtitle">Convert binary .schem or .schematic files into Bedrock Edition commands.</p>
+                 <p class="hero-subtitle">Convert binary .schem or .schematic files (Java Edition format) into Bedrock Edition setblock/fill commands.</p>
              </div>
              <div class="row">
                  <div class="col-lg-8 mx-auto">
@@ -845,13 +869,13 @@
                          <div id="schem-drop-area" class="drop-area" title="Accepts .schem or .schematic files">
                              <i class="fas fa-file-archive"></i>
                              <p>Drag and drop your .schem/.schematic file here, or click</p>
-                             <span id="schem-file-name" class="file-name-display">No file selected</span>
+                             <span id="schem-file-name" class="file-name-display">No file selected</span> <!-- Use specific ID -->
                              <input type="file" id="schem-input-file" accept=".schem,.schematic" class="file-input">
                          </div>
                          <div class="row mt-4">
                              <div class="col-md-6 mb-3">
                                  <label for="schem-outputName" class="form-label">Output File Name Base</label>
-                                 <input type="text" id="schem-outputName" class="form-control" placeholder="e.g., MyBuild_Commands" value="Commands">
+                                 <input type="text" id="schem-outputName" class="form-control" placeholder="e.g., MyBuild_Commands" value="SchemCommands">
                              </div>
                              <div class="col-md-6 mb-3 d-flex align-items-center justify-content-center">
                                 <div class="form-check form-switch mt-md-4"> <!-- Adjusted margin for medium screens -->
@@ -861,28 +885,28 @@
                              </div>
                          </div>
                          <div class="row">
-                             <label class="form-label col-12">Command Offset (Relative Coordinates)</label>
+                             <label class="form-label col-12">Command Offset (Relative to Player)</label>
                              <div class="col-md-4 mb-3">
                                  <label for="schem-offsetX" class="form-label visually-hidden">Offset X</label>
-                                 <input type="number" id="schem-offsetX" class="form-control" placeholder="X Offset" value="0" title="Offset X">
+                                 <input type="number" id="schem-offsetX" class="form-control" placeholder="X Offset (~)" value="0" title="Offset X">
                              </div>
                              <div class="col-md-4 mb-3">
                                  <label for="schem-offsetY" class="form-label visually-hidden">Offset Y</label>
-                                 <input type="number" id="schem-offsetY" class="form-control" placeholder="Y Offset" value="0" title="Offset Y">
+                                 <input type="number" id="schem-offsetY" class="form-control" placeholder="Y Offset (~)" value="0" title="Offset Y">
                              </div>
                              <div class="col-md-4 mb-3">
                                  <label for="schem-offsetZ" class="form-label visually-hidden">Offset Z</label>
-                                 <input type="number" id="schem-offsetZ" class="form-control" placeholder="Z Offset" value="0" title="Offset Z">
+                                 <input type="number" id="schem-offsetZ" class="form-control" placeholder="Z Offset (~)" value="0" title="Offset Z">
                              </div>
                          </div>
                          <div class="text-center mt-3">
                              <button id="schem-generate-button" class="btn btn-cyber">
-                                 <i class="fas fa-cogs me-2"></i>Generate Commands
+                                 <i class="fas fa-cogs"></i>Generate Commands
                              </button>
                          </div>
-                         <div id="schem-status" class="status-message" style="display: none;"></div>
+                         <div id="schem-status" class="status-message"></div> <!-- Use status message styling -->
                      </div>
-                     <!-- No preview area for schem to commands, download only -->
+                     <!-- No preview area for schem to commands, direct download -->
                  </div>
              </div>
         </section>
@@ -891,31 +915,31 @@
         <section id="tool-java-to-bedrock" class="tool-section">
              <div class="hero-section">
                  <h1 class="hero-title">JAVA TO BEDROCK TRANSLATOR</h1>
-                 <p class="hero-subtitle">Convert Minecraft Java Edition commands to Bedrock Edition format.</p>
+                 <p class="hero-subtitle">Convert Minecraft Java Edition setblock/fill commands to Bedrock Edition format using client-side mappings.</p>
              </div>
             <div class="row">
                  <div class="col-lg-8 mx-auto">
                      <div class="tool-card">
                          <h3 class="tool-title">JAVA COMMAND INPUT</h3>
                          <div id="java-bedrock-drop-area" class="drop-area" title="Text files with Java commands (.txt)">
-                              <i class="fab fa-java"></i> <!-- Java Icon -->
+                              <i class="fab fa-java"></i>
                              <p>Drag and drop your Java commands file here, or click</p>
                              <span class="file-name-display">No file selected</span>
-                             <input type="file" id="java-bedrock-input-file" accept=".txt" class="file-input">
+                             <input type="file" id="java-bedrock-input-file" accept=".txt,text/plain" class="file-input">
                          </div>
                          <div class="text-center mt-4">
                              <button id="java-bedrock-translate-button" class="btn btn-cyber">
-                                 <i class="fas fa-exchange-alt me-2"></i>Translate Commands
+                                 <i class="fas fa-exchange-alt"></i>Translate Commands
                              </button>
                          </div>
                          <div id="java-bedrock-validation-message" class="validation-message"></div>
                      </div>
                      <div id="java-bedrock-output-preview" class="output-preview">
-                         <h4><i class="fas fa-code me-2"></i>TRANSLATED BEDROCK COMMANDS</h4>
-                         <textarea id="java-bedrock-preview-text" class="code-textarea" rows="10" readonly spellcheck="false" wrap="off"></textarea>
+                         <h4><i class="fas fa-code"></i>TRANSLATED BEDROCK COMMANDS</h4>
+                         <textarea id="java-bedrock-preview-text" class="code-textarea" rows="10" readonly spellcheck="false" wrap="off" placeholder="Translated Bedrock commands will appear here..."></textarea>
                          <div class="text-center mt-3">
                              <button id="java-bedrock-download-button" class="btn btn-cyber" disabled>
-                                 <i class="fas fa-download me-2"></i>Download Bedrock Commands
+                                 <i class="fas fa-download"></i>Download Bedrock Commands
                              </button>
                          </div>
                      </div>
@@ -946,7 +970,15 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Combined Custom JS -->
+
+    <!-- Mapping Data (MUST be loaded BEFORE translator.js and script.js) -->
+    <script src="mappings.js"></script>
+
+    <!-- Translator Logic (Client-Side Version) -->
+    <script src="translator.js"></script>
+
+    <!-- Combined Custom UI/Tool Logic -->
     <script src="script.js"></script>
+
 </body>
 </html>
