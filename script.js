@@ -1,4 +1,4 @@
-// --- START OF FILE script.js ---
+
 
 // ========================================================================== //
 //                              NBT Helper Section                            //
@@ -101,8 +101,8 @@ function writeTagNonRecursive(buffer, name, value) {
 function writeListNonRecursive(buffer, dataList) {
     try {
         if (!dataList.length) {
-            nbtWriterCurrentOffset = writeByte(buffer, nbtWriterCurrentOffset, TAG_END);
-            nbtWriterCurrentOffset = writeInt(buffer, nbtWriterCurrentOffset, 0);
+            nbtWriterCurrentOffset = writeByte(buffer, nbtWriterCurrentOffset, TAG_END); // TAG_END as list type for empty list
+            nbtWriterCurrentOffset = writeInt(buffer, nbtWriterCurrentOffset, 0); // Length 0
             return;
         }
 
@@ -133,7 +133,7 @@ function writeListNonRecursive(buffer, dataList) {
                 for (const key of objKeys) {
                     writeTagNonRecursive(buffer, key, item[key]);
                 }
-                nbtWriterCurrentOffset = writeByte(buffer, nbtWriterCurrentOffset, TAG_END);
+                nbtWriterCurrentOffset = writeByte(buffer, nbtWriterCurrentOffset, TAG_END); // End of compound in list
             } else {
                 console.warn(`Unsupported item type in list at index ${i}:`, item);
             }
@@ -326,28 +326,20 @@ function loadSchematicNBT(buffer) {
 //                     Raw to NBT Converter Logic                             //
 //========================================================================== //
 
-// --- Start of Replacement Block (Exact structure from raw_to_nbt.js) ---
-// Global state for Raw to NBT tool (Re-declared here for clarity, but uses the same top-level variable)
-let rawToNbtFileContent = ''; // Using the shared global variable
+// Global state for Raw to NBT tool
+let rawToNbtFileContent = '';
 
-// Helper function to get UTF-8 byte length
 function getUtf8ByteLength(str) {
     const encoder = new TextEncoder();
     return encoder.encode(str).length;
 }
-
-// Escapes double quotes in commands
 function escapeQuotes(command) {
     return command.replace(/"/g, '\\\\\\"');
 }
-
-// Processes file content into an array of commands
 function getUsefulCommands(content) {
     const commands = content.split('\n').map(cmd => cmd.trim()).filter(cmd => cmd.length > 0);
     return commands.map(escapeQuotes);
 }
-
-// Separates commands into normal and equals types
 function separateCommands(commands) {
     const normalCommands = [];
     const equalsCommands = [];
@@ -360,58 +352,36 @@ function separateCommands(commands) {
     });
     return { normalCommands, equalsCommands };
 }
-
-// NBT block opener
 function getBlockOpener(nbtName) {
-    // Using Blacklight branding as established previously
     return `{Block:{name:"minecraft:moving_block",states:{},version:17959425},Count:1b,Damage:0s,Name:"minecraft:moving_block",WasPickedUp:0b,tag:{display:{Lore:["Â§lÂ§bBuild By: Â§dBlacklightî„€","Â§3NBT Tool By: Â§aBrutus314 ","Â§aand Clawsky123î„ ","Â§9Conversion Tool By: ","Â§eExgioan!!î„‚","Â§fSpecial Thanks To:","Â§6Chronicles765!!    î„ƒ","Â§4Warning: Â§cDont Hold Too","Â§cMany Or You Will Lag!!Â§âˆ†"],Name:"Â§lÂ§dBlacklight NBT: Â§gÂ§l${nbtName}"},ench:[{id:28s,lvl:1s}],movingBlock:{name:"minecraft:sea_lantern",states:{},version:17879555},movingEntity:{Occupants:[`;
 }
-
-// NBT block closer
 function getBlockCloser() {
     return '],id:"Beehive"}}}';
 }
-
-// Normal NPC opener
 function getNpcOpener(section, nbtName) {
     return `{ActorIdentifier:"minecraft:npc<>",SaveData:{Actions:"[{"button_name" : "Build Part: ${section}","data" : [`;
 }
-
-// Normal NPC closer
 function getNpcCloser(section, nbtName) {
-     // Using Blacklight branding as established previously
     return `],"mode" : 0,"text" : "","type" : 1}]",CustomName:"Â§lÂ§dBlacklight NBT: ${nbtName}",CustomNameVisible:1b,InterativeText:"Â§cBuild By: Â§dBlacklight!!î„€\nThanks to Kitty_shizz\nBuild Part: ${section}\nÂ§cConversion Tool By: Â§dExgioan!!\nÂ§cSpecial Thanks To: Â§dChronicles765!!! î„ƒ\nÂ§6Thanks For Trying My ${nbtName} Build!!!",Persistent:1b,Pos:[],RawtextName:"Â§lÂ§dBlacklight NBT: ${nbtName}",Tags:["${nbtName}${section}"],Variant:3,definitions:["+minecraft:npc"],identifier:"minecraft:npc"},TicksLeftToStay:0}`;
 }
-
-// Equals NPC opener
 function getEqualsNpcOpener(section, nbtName) {
     return `{ActorIdentifier:"minecraft:npc<>",SaveData:{"Actions":"[{\\"button_name\\" : \\"Build Part: ${section}\\",       \\"data\\" : [`;
 }
-
-// Equals NPC closer
 function getEqualsNpcCloser(section, nbtName) {
-    // Using Blacklight branding as established previously
     return `],       \\"mode\\" : 0,       \\"text\\" : \\"\\",       \\"type\\" : 1}]",CustomName:"Â§lÂ§dBlacklight NBT: ${nbtName}",CustomNameVisible:1b,InteractiveText:"§cBuild By:"Â§cBuild By: Â§dBlacklight!!î„€\nThanks to Kitty_shizz\nBuild Part: ${section}\nÂ§cConversion Tool By: Â§dExgioan!!\nÂ§cSpecial Thanks To: Â§dChronicles765!!!\n§6Thanks For Trying My ${nbtName} Build!!!",Persistent:1b,Pos:[],RawtextName:"Â§lÂ§dBlacklight NBT: ${nbtName}",Tags:["${nbtName}${section}"],Variant:3,definitions:["+minecraft:npc"],identifier:"minecraft:npc"},TicksLeftToStay:0}`;
 }
-
-// Joins normal commands
 function commandJoinerNormal(commands) {
     return commands.map(cmd => `{"cmd_line":"${cmd}","cmd_ver":12}`).join(',');
 }
-
-// Joins equals commands with specific formatting
 function commandJoinerEquals(commands) {
     return commands.map(cmd => `          {             \\"cmd_line\\":\\"${cmd}\\",             \\"cmd_ver\\" : 42          }`).join(',');
 }
-
-// Processes commands into NPC blocks with byte limit
 function processNpcCommandsByBytes(commands, maxBytes, nbtName, startSection, joiner, isEquals) {
     const npcDataList = [];
     let currentCommands = [];
     let currentSection = startSection;
     const openerFunc = isEquals ? getEqualsNpcOpener : getNpcOpener;
     const closerFunc = isEquals ? getEqualsNpcCloser : getNpcCloser;
-
     for (const cmd of commands) {
         const candidateCommands = [...currentCommands, cmd];
         const candidateJoined = joiner(candidateCommands);
@@ -419,11 +389,9 @@ function processNpcCommandsByBytes(commands, maxBytes, nbtName, startSection, jo
         const closerText = closerFunc(currentSection, nbtName);
         const candidateBlock = openerText + candidateJoined + closerText;
         const candidateByteLength = getUtf8ByteLength(candidateBlock);
-
         if (candidateByteLength <= maxBytes) {
             currentCommands.push(cmd);
         } else {
-             // Finalize current block if it has commands
             if (currentCommands.length > 0) {
                 const npcCommandList = [...currentCommands];
                 if (!isEquals) {
@@ -431,7 +399,6 @@ function processNpcCommandsByBytes(commands, maxBytes, nbtName, startSection, jo
                 } else {
                     npcCommandList.push('/tickingarea add circle ~60 ~20 ~60 4 EQUALSCOMMANDS');
                 }
-                // Dialogue open command added conditionally later
                 npcCommandList.push('/kill @s');
                 if (!isEquals) {
                     npcCommandList.push('/tickingarea remove NPCCOMMANDS');
@@ -442,13 +409,10 @@ function processNpcCommandsByBytes(commands, maxBytes, nbtName, startSection, jo
                 const npcBlock = openerFunc(currentSection, nbtName) + joinedCommands + closerFunc(currentSection, nbtName);
                 npcDataList.push({ block: npcBlock, section: currentSection });
              }
-            // Start new block
             currentSection += 1;
             currentCommands = [cmd];
         }
     }
-
-    // Finalize last block
     if (currentCommands.length > 0) {
         const npcCommandList = [...currentCommands];
         if (!isEquals) {
@@ -456,7 +420,6 @@ function processNpcCommandsByBytes(commands, maxBytes, nbtName, startSection, jo
         } else {
             npcCommandList.push('/tickingarea add circle ~60 ~20 ~60 4 EQUALSCOMMANDS');
         }
-        // No dialogue open for the last block
         npcCommandList.push('/kill @s');
         if (!isEquals) {
             npcCommandList.push('/tickingarea remove NPCCOMMANDS');
@@ -467,33 +430,24 @@ function processNpcCommandsByBytes(commands, maxBytes, nbtName, startSection, jo
         const npcBlock = openerFunc(currentSection, nbtName) + joinedCommands + closerFunc(currentSection, nbtName);
         npcDataList.push({ block: npcBlock, section: currentSection });
     }
-
-     // Add dialogue open commands by modifying previous blocks (Post-processing step)
      for (let i = 0; i < npcDataList.length - 1; i++) {
         const currentBlockData = npcDataList[i];
-        const nextSection = npcDataList[i + 1].section; // Get the actual next section number
+        const nextSection = npcDataList[i + 1].section;
         const dialogueOpenCmd = `/dialogue open @e[tag=${nbtName}${nextSection},type=NPC] @initiator`;
-        // Must escape the command *before* formatting it
         const escapedDialogueCmd = escapeQuotes(dialogueOpenCmd);
         const dialogueOpenCmdFormatted = isEquals
             ? `          {             \\"cmd_line\\":\\"${escapedDialogueCmd}\\",             \\"cmd_ver\\" : 42          }`
             : `{"cmd_line":"${escapedDialogueCmd}","cmd_ver":12}`;
-
-         // Try to insert before the kill command
          const killCmdJsonNormal = `{"cmd_line":"${escapeQuotes('/kill @s')}","cmd_ver":12}`;
          const killCmdJsonEquals = `          {             \\"cmd_line\\":\\"${escapeQuotes('/kill @s')}\\",             \\"cmd_ver\\" : 42          }`;
          const killCmdJson = isEquals ? killCmdJsonEquals : killCmdJsonNormal;
-
          const killIndex = currentBlockData.block.lastIndexOf(killCmdJson);
-
          if (killIndex !== -1) {
-             // Find the comma before the kill command to insert correctly
              const commaIndex = currentBlockData.block.lastIndexOf(',', killIndex);
              if (commaIndex !== -1) {
                   npcDataList[i].block = currentBlockData.block.substring(0, commaIndex + 1) + dialogueOpenCmdFormatted + currentBlockData.block.substring(commaIndex);
              } else {
-                  // Should not happen if kill command exists, but handle defensively
-                  console.warn(`RawToNBT: Could not find comma before kill command in section ${currentBlockData.section}. Appending dialogue command.`);
+                  console.warn(`RawToNBT: Could not find comma before kill command in section ${currentBlockData.section}.`);
                    const closerStr = closerFunc(currentBlockData.section, nbtName);
                    const insertionPoint = currentBlockData.block.lastIndexOf(closerStr);
                    if (insertionPoint !== -1) {
@@ -504,8 +458,7 @@ function processNpcCommandsByBytes(commands, maxBytes, nbtName, startSection, jo
                    }
              }
          } else {
-             console.warn(`RawToNBT: Could not find kill command for inserting dialogue command in section ${currentBlockData.section}. Appending.`);
-             // Append before the closer if kill command wasn't found (less ideal)
+             console.warn(`RawToNBT: Could not find kill command for inserting dialogue command in section ${currentBlockData.section}.`);
               const closerStr = closerFunc(currentBlockData.section, nbtName);
               const insertionPoint = currentBlockData.block.lastIndexOf(closerStr);
               if (insertionPoint !== -1) {
@@ -516,11 +469,8 @@ function processNpcCommandsByBytes(commands, maxBytes, nbtName, startSection, jo
               }
          }
     }
-
     return { npcData: npcDataList.map(item => item.block).join(','), count: npcDataList.length };
 }
-
-// --- End of Replacement Block ---
 
 // ========================================================================== //
 //                 Commands to Structure Converter Logic                      //
@@ -528,23 +478,10 @@ function processNpcCommandsByBytes(commands, maxBytes, nbtName, startSection, jo
 
 // Global state for Commands to Structure tool
 let cmdStructFileContent = '';
-let commandsToStructureData = { // Holds the generated structure data
-    format_version: 1,
-    size: [0, 0, 0],
-    structure: {
-        block_indices: [[], []],
-        entities: [],
-        palette: {
-            default: {
-                block_palette: [],
-                block_position_data: {}
-            }
-        }
-    },
-    structure_world_origin: [0, 0, 0]
+let commandsToStructureData = {
+    format_version: 1, size: [0, 0, 0], structure: { block_indices: [[], []], entities: [], palette: { default: { block_palette: [], block_position_data: {} } } }, structure_world_origin: [0, 0, 0]
 };
-let cmdStructBlocksMap = {}; // Stores parsed blocks {x: {y: {z: [name, states]}}}
-
+let cmdStructBlocksMap = {};
 
 function parseCmdStructCoordinate(coordStr) {
     coordStr = coordStr.trim();
@@ -555,7 +492,6 @@ function parseCmdStructCoordinate(coordStr) {
         return parseInt(coordStr);
     }
 }
-
 function parseCmdStructBlockWithStates(blockStr) {
     blockStr = blockStr.trim();
     const match = blockStr.match(/^([\w:]+)(?:\[(.*)\])?/);
@@ -563,18 +499,15 @@ function parseCmdStructBlockWithStates(blockStr) {
         console.warn(`CmdStruct: Could not parse block string: ${blockStr}`);
         return [blockStr, {}];
     }
-
     const blockName = match[1];
     const statesStr = match[2] || '';
     const states = {};
-
     if (statesStr) {
         const statePairs = statesStr.match(/([\w:"\-]+)\s*=\s*([\w"\-.+]+)/g) || [];
         for (const pair of statePairs) {
             const [key, value] = pair.split('=').map(s => s.trim());
             const cleanKey = key.replace(/"/g, '');
             const valueLower = value.toLowerCase();
-
             if (valueLower === 'true') {
                 states[cleanKey] = true;
             } else if (valueLower === 'false') {
@@ -587,25 +520,19 @@ function parseCmdStructBlockWithStates(blockStr) {
     }
     return [blockName, states];
 }
-
-
 function processCmdStructCommands(commandsText) {
-    cmdStructBlocksMap = {}; // Reset
+    cmdStructBlocksMap = {};
     let commandCount = 0;
     let errorCount = 0;
     const baseX = 0, baseY = 0, baseZ = 0;
     const commands = commandsText.split('\n');
-
     for (let lineNum = 0; lineNum < commands.length; lineNum++) {
         const cmd = commands[lineNum].trim();
         if (!cmd || cmd.startsWith('#')) continue;
-
         const parts = cmd.split(/\s+/);
         if (parts.length === 0) continue;
-
         const commandName = parts[0].toLowerCase();
         commandCount++;
-
         try {
             if (commandName === 'fill' && parts.length >= 8) {
                 const x1 = baseX + parseCmdStructCoordinate(parts[1]);
@@ -619,7 +546,6 @@ function processCmdStructCommands(commandsText) {
                 const startX = Math.min(x1, x2); const endX = Math.max(x1, x2);
                 const startY = Math.min(y1, y2); const endY = Math.max(y1, y2);
                 const startZ = Math.min(z1, z2); const endZ = Math.max(z1, z2);
-
                 for (let x = startX; x <= endX; x++) {
                     if (!cmdStructBlocksMap[x]) cmdStructBlocksMap[x] = {};
                     for (let y = startY; y <= endY; y++) {
@@ -635,7 +561,6 @@ function processCmdStructCommands(commandsText) {
                 const z = baseZ + parseCmdStructCoordinate(parts[3]);
                 const blockStr = parts.slice(4).join(' ');
                 const [blockName, states] = parseCmdStructBlockWithStates(blockStr);
-
                 if (!cmdStructBlocksMap[x]) cmdStructBlocksMap[x] = {};
                 if (!cmdStructBlocksMap[x][y]) cmdStructBlocksMap[x][y] = {};
                 cmdStructBlocksMap[x][y][z] = [blockName, states];
@@ -648,33 +573,23 @@ function processCmdStructCommands(commandsText) {
             errorCount++;
         }
     }
-
     console.log(`CmdStruct: Processed ${commandCount} commands with ${errorCount} errors/warnings.`);
     if (Object.keys(cmdStructBlocksMap).length === 0) {
         console.warn("CmdStruct: Warning: No blocks parsed.");
     }
-    return {
-        commandCount,
-        errorCount,
-        blocksFound: Object.keys(cmdStructBlocksMap).length > 0
-    };
+    return { commandCount, errorCount, blocksFound: Object.keys(cmdStructBlocksMap).length > 0 };
 }
-
 function convertToStructureData() {
     try {
         console.log("CmdStruct: Starting conversion to structure data...");
-        // Reset structure data object
         commandsToStructureData = {
             format_version: 1, size: [0, 0, 0], structure: { block_indices: [[], []], entities: [], palette: { default: { block_palette: [], block_position_data: {} } } }, structure_world_origin: [0, 0, 0]
         };
-
         const allX = Object.keys(cmdStructBlocksMap).map(Number);
         if (allX.length === 0) {
             return { success: false, message: "No blocks found. Cannot generate structure." };
         }
-
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
-
         for (const xStr in cmdStructBlocksMap) {
             const x = Number(xStr); minX = Math.min(minX, x); maxX = Math.max(maxX, x);
             for (const yStr in cmdStructBlocksMap[xStr]) {
@@ -684,23 +599,19 @@ function convertToStructureData() {
                 }
             }
         }
-
         const width = (maxX - minX + 1) || 1;
         const height = (maxY - minY + 1) || 1;
         const depth = (maxZ - minZ + 1) || 1;
         const totalVolume = width * height * depth;
-
         if (totalVolume > 10000000) {
             console.warn(`CmdStruct: WARNING: Very large structure with ${totalVolume} potential blocks (${width}x${height}x${depth})`);
         }
         console.log(`CmdStruct: Bounds: X(${minX}-${maxX}), Y(${minY}-${maxY}), Z(${minZ}-${maxZ}). Size: ${width}x${height}x${depth}`);
-
         const uniqueBlocks = new Map();
         const palette = [];
         let blockCount = 0;
         const blockIndicesLayer0 = [];
         const airIndex = -1;
-
         for (let x = minX; x <= maxX; x++) {
             const xBlocks = cmdStructBlocksMap[x];
             if (!xBlocks) {
@@ -720,12 +631,11 @@ function convertToStructureData() {
                         if (!blockName.includes(':')) { blockIdStr = `minecraft:${blockName}`; }
                         const stateEntries = Object.entries(states || {}).sort((a, b) => a[0].localeCompare(b[0]));
                         const blockKey = JSON.stringify([blockIdStr, stateEntries]);
-
                         let paletteIndex;
                         if (!uniqueBlocks.has(blockKey)) {
                             paletteIndex = palette.length;
                             uniqueBlocks.set(blockKey, paletteIndex);
-                            palette.push({ name: blockIdStr, states: states || {}, version: 18163713 }); // Using a recent version number
+                            palette.push({ name: blockIdStr, states: states || {}, version: 18163713 });
                         } else {
                             paletteIndex = uniqueBlocks.get(blockKey);
                         }
@@ -736,26 +646,18 @@ function convertToStructureData() {
                 }
             }
         }
-
         console.log(`CmdStruct: Found ${blockCount} blocks, created palette with ${palette.length} unique entries.`);
         if (blockIndicesLayer0.length !== totalVolume) {
             console.error(`CmdStruct: CRITICAL INDEXING ERROR: Final block_indices length (${blockIndicesLayer0.length}) does not match calculated volume (${totalVolume}). This structure WILL NOT load correctly.`);
         }
-
         const blockIndicesLayer1 = new Array(totalVolume).fill(-1);
-
         commandsToStructureData.size = [width, height, depth];
         commandsToStructureData.structure_world_origin = [minX, minY, minZ];
         commandsToStructureData.structure.block_indices = [blockIndicesLayer0, blockIndicesLayer1];
         commandsToStructureData.structure.palette.default.block_palette = palette;
         commandsToStructureData.structure.entities = [];
         commandsToStructureData.structure.palette.default.block_position_data = {};
-
-        return {
-            success: true, data: commandsToStructureData, dimensions: { width, height, depth },
-            origin: [minX, minY, minZ], blockCount, paletteCount: palette.length
-        };
-
+        return { success: true, data: commandsToStructureData, dimensions: { width, height, depth }, origin: [minX, minY, minZ], blockCount, paletteCount: palette.length };
     } catch (e) {
         console.error("CmdStruct: Critical error during conversion:", e);
         return { success: false, message: `Error during conversion: ${e.message}` };
@@ -769,36 +671,66 @@ function convertToStructureData() {
 // Global state for NBT to Raw tool
 let nbtToRawFileContent = '';
 
-// Regexes for command extraction
-const nbtToRawPrimaryRegex = /"cmd_line"\s*:\s*"((?:[^"\\]|\\.)*)"/g;
-const nbtToRawFallbackRegex = /(setblock|fill)\s+~?-?\d+\s+~?-?\d+\s+~?-?\d+(?:\s+~?-?\d+\s+~?-?\d+\s+~?-?\d+)?\s+minecraft:[\w:]+(?:\[[^\]]*\])?/g;
+// NEW EXTRACTION LOGIC (Adapted from extract commands test.js)
+function extractFillSetblockCommandsFromHorionText(fileContent) {
+    const allExtractedCommands = [];
+    // Regex to find and capture the string content of "Actions:<value>"
+    // Assumes "Actions" is an unquoted key.
+    const actionsRegex = /Actions\s*:\s*"((?:\\.|[\s\S])*)"(?=,|\s*\}|\s*\])/g;
+    // console.log('NBTtoRaw: Using Actions Regex:', actionsRegex.toString());
 
-// Post-processing function for extracted commands
-function nbtToRawPostProcessCommands(commands) {
-    console.log('NBTtoRaw: Starting post-processing...');
-    const processed = commands.map(cmd => {
-        // Triple backslash quotes seem specific to the Raw->NBT generator, clean them first
-        let cleanedCmd = cmd.replace(/\\\\\\\"/g, '"');
-        // Then handle standard escaped quotes if they exist
-        cleanedCmd = cleanedCmd.replace(/\\\"/g, '"');
-        return cleanedCmd.trim();
-    });
-    console.log(`NBTtoRaw: Finished post-processing ${processed.length} commands.`);
-    return processed;
+    let actionsMatch;
+    let actionsBlockCount = 0;
+    while ((actionsMatch = actionsRegex.exec(fileContent)) !== null) {
+        actionsBlockCount++;
+        let actionsStringContentFromFile = actionsMatch[1]; // Raw captured string for Actions value
+
+        // console.log(`\nNBTtoRaw: --- Processing Actions Block ${actionsBlockCount} ---`);
+        // console.log(`NBTtoRaw:   Raw captured Action string length: ${actionsStringContentFromFile.length}`);
+        
+        // First level of unescaping: for the "Actions" string value itself.
+        let unescapedActionsString = actionsStringContentFromFile.replace(/\\"/g, '"');
+        unescapedActionsString = unescapedActionsString.replace(/\\\\/g, '\\');
+        
+        // console.log(`NBTtoRaw:   Unescaped Actions String (first 300): "${unescapedActionsString.substring(0, 300)}..."`);
+
+        // Regex to find "cmd_line":"<command_value>" within the unescapedActionsString.
+        const cmdLineRegexRobust = /"cmd_line"\s*:\s*"((?:\\.|[^"\\])*)"/g;
+
+        let cmdMatch;
+        let commandsInThisBlock = 0;
+        while ((cmdMatch = cmdLineRegexRobust.exec(unescapedActionsString)) !== null) {
+            let rawCapturedCmdValue = cmdMatch[1]; 
+            let processedCommand = rawCapturedCmdValue.replace(/\\"/g, '"');
+            processedCommand = processedCommand.replace(/\\\\/g, '\\');
+            
+            if (processedCommand.startsWith('fill ') || processedCommand.startsWith('setblock ')) {
+                allExtractedCommands.push(processedCommand);
+                commandsInThisBlock++;
+            } else {
+                // console.log(`NBTtoRaw:     Skipping non-fill/setblock cmd: ${processedCommand.substring(0, 100)}...`);
+            }
+        }
+        // console.log(`NBTtoRaw:   Extracted ${commandsInThisBlock} fill/setblock commands from this Actions block.`);
+    }
+
+    // console.log(`\nNBTtoRaw: --- Summary ---`);
+    // console.log(`NBTtoRaw: Total "Actions" blocks processed: ${actionsBlockCount}`);
+    // console.log(`NBTtoRaw: Total fill/setblock commands extracted: ${allExtractedCommands.length}`);
+    return allExtractedCommands;
 }
+
 
 // ========================================================================== //
 //                  Schematic to Commands Converter Logic                     //
 // ========================================================================== //
 
 // Global state for Schematic to Commands tool
-let schemFileObject = null; // Store the File object
+let schemFileObject = null;
 
-// VarInt Iterator (Helper for Schematic parsing)
 function* varIntIterator(byteArray) {
     let index = 0;
     const dataView = new DataView(byteArray.buffer, byteArray.byteOffset, byteArray.byteLength);
-
     while (index < byteArray.length) {
         let value = 0;
         let shift = 0;
@@ -817,8 +749,6 @@ function* varIntIterator(byteArray) {
         yield value;
     }
 }
-
-// Creates mapping from Palette ID -> BlockState string
 function createInvertedPalette(paletteNbt) {
     const inverted = new Map();
     if (!paletteNbt || typeof paletteNbt !== 'object') {
@@ -836,23 +766,17 @@ function createInvertedPalette(paletteNbt) {
     }
     return inverted;
 }
-
-// Ends a run of identical blocks (used by generateCommands)
 function endSchemBlockRun(commands, start, end, y, z, dx, dy, dz, blockType) {
     const runLength = end - start + 1;
     if (runLength <= 0) return;
-
     const startX = Math.floor(dx + start);
     const endX = Math.floor(dx + end);
     const currentY = Math.floor(dy + y);
     const currentZ = Math.floor(dz + z);
-
     if (typeof blockType !== 'string' || !blockType.includes(':')) {
         console.warn(`Schem: Skipping run due to invalid blockType: ${blockType}`);
         return;
     }
-
-    // Bedrock commands use relative coords implicitly for setblock/fill
     if (runLength >= 3) {
         commands.push(`fill ~${startX} ~${currentY} ~${currentZ} ~${endX} ~${currentY} ~${currentZ} ${blockType}`);
     } else {
@@ -862,8 +786,6 @@ function endSchemBlockRun(commands, start, end, y, z, dx, dy, dz, blockType) {
         }
     }
 }
-
-// Main command generation function for Schematics
 function generateSchemCommands(schematicData, dims, offset, includeAir) {
     if (!Array.isArray(dims) || dims.length !== 3 || dims.some(d => typeof d !== 'number' || d <= 0)) {
         throw new Error(`Schem: Invalid dimensions: ${JSON.stringify(dims)}.`);
@@ -873,22 +795,23 @@ function generateSchemCommands(schematicData, dims, offset, includeAir) {
     }
     const [width, height, length] = dims.map(Math.floor);
     const [dx, dy, dz] = offset.map(Math.floor);
-
     let blockData;
     let paletteNbt;
-
-    // Find Palette and BlockData (supporting different nesting)
+    let processedBlockCount = 0;
     if (schematicData.Palette && schematicData.BlockData) {
         paletteNbt = schematicData.Palette;
         blockData = schematicData.BlockData;
     } else if (schematicData.Blocks && typeof schematicData.Blocks === 'object' && schematicData.Blocks.Data && schematicData.Blocks.Palette) {
         paletteNbt = schematicData.Blocks.Palette;
-        blockData = schematicData.Blocks.Data; // Assume this is the byte array
+        blockData = schematicData.Blocks.Data;
+    } else if (schematicData.BlockData && schematicData.PaletteIntList) {
+        console.warn("Schem: Detected IntList Palette, direct name mapping not standard. Attempting basic parse.");
+        paletteNbt = schematicData.Palette;
+        blockData = schematicData.BlockData;
     } else {
         console.error("Schem Data Keys:", Object.keys(schematicData));
-        throw new Error("Schem: Could not find required keys: 'Palette' and 'BlockData'.");
+        throw new Error("Schem: Could not find required keys for Palette and BlockData. Supported formats include standard Schematic (root Palette/BlockData) or Sponge-style (nested Schematic.Blocks.Palette/Data).");
     }
-
     if (typeof paletteNbt !== 'object' || paletteNbt === null) {
         throw new Error(`Schem: Invalid Palette type: Expected TAG_COMPOUND, got ${typeof paletteNbt}`);
     }
@@ -900,15 +823,13 @@ function generateSchemCommands(schematicData, dims, offset, includeAir) {
             throw new Error(`Schem: Invalid BlockData type: Expected TAG_BYTE_ARRAY (Uint8Array), got ${blockData?.constructor?.name || typeof blockData}`);
         }
     }
-
     const expectedBlockCount = width * height * length;
     const invertedPalette = createInvertedPalette(paletteNbt);
     const iterator = varIntIterator(blockData);
     const commands = [];
     let blockIndex = 0;
-    let currentY = 0; // For error reporting
+    let currentY = 0;
     let currentZ = 0;
-
     try {
         for (let y = 0; y < height; y++) {
             currentY = y;
@@ -921,13 +842,14 @@ function generateSchemCommands(schematicData, dims, offset, includeAir) {
                     if (iteratorResult.done) {
                         console.warn(`Schem: BlockData stream ended prematurely at index ${blockIndex} (x=${x}, y=${y}, z=${z}). Expected ${expectedBlockCount}.`);
                         if (runStart !== null) endSchemBlockRun(commands, runStart, x - 1, y, z, dx, dy, dz, runBlockType);
-                        throw new Error(`Schem: Ran out of block data at index ${blockIndex}. Expected ${expectedBlockCount}.`);
+                        y = height; z = length; x = width;
+                        break;
                     }
                     const paletteIndex = iteratorResult.value;
                     blockIndex++;
-
+                    processedBlockCount++;
                     if (!invertedPalette.has(paletteIndex)) {
-                        console.warn(`Schem: Palette index ${paletteIndex} not found at (x=${x}, y=${y}, z=${z}). Max index: ${invertedPalette.size - 1}. Skipping.`);
+                        console.warn(`Schem: Palette index ${paletteIndex} not found at (x=${x}, y=${y}, z=${z}). Max index in palette: ${invertedPalette.size - 1}. Skipping block.`);
                         if (runStart !== null) {
                             endSchemBlockRun(commands, runStart, x - 1, y, z, dx, dy, dz, runBlockType);
                             runStart = null;
@@ -935,7 +857,6 @@ function generateSchemCommands(schematicData, dims, offset, includeAir) {
                         continue;
                     }
                     const blockType = invertedPalette.get(paletteIndex);
-
                     if (!includeAir && blockType === "minecraft:air") {
                         if (runStart !== null) {
                             endSchemBlockRun(commands, runStart, x - 1, y, z, dx, dy, dz, runBlockType);
@@ -943,7 +864,6 @@ function generateSchemCommands(schematicData, dims, offset, includeAir) {
                         }
                         continue;
                     }
-
                     if (runStart === null) {
                         runStart = x;
                         runBlockType = blockType;
@@ -958,24 +878,535 @@ function generateSchemCommands(schematicData, dims, offset, includeAir) {
                 }
             }
         }
-
         if (blockIndex < expectedBlockCount) {
-            console.warn(`Schem: Processed ${blockIndex} blocks, expected ${expectedBlockCount}. BlockData might be shorter.`);
+            console.warn(`Schem: Processed ${blockIndex} blocks, expected ${expectedBlockCount}. BlockData might be shorter than specified dimensions.`);
         }
         const finalIteratorResult = iterator.next();
         if (!finalIteratorResult.done) {
-            console.warn(`Schem: BlockData stream has extra data after processing ${expectedBlockCount} blocks.`);
+            console.warn(`Schem: BlockData stream has extra data after processing ${expectedBlockCount} blocks (or fewer if dimensions were smaller).`);
         }
-
     } catch (e) {
         console.error(`Schem: Error during command generation loop at approx (y=${currentY}, z=${currentZ}):`, e);
-        return commands; // Return partial commands on error
     }
-
-    console.log(`Schem: Generated ${commands.length} commands (Include Air: ${includeAir}). Processed ${blockIndex} block states.`);
-    return commands;
+    console.log(`Schem: Generated ${commands.length} commands (Include Air: ${includeAir}). Processed ${processedBlockCount} block states from data.`);
+    return {commands, processedBlockCount };
 }
 
+// ========================================================================== //
+//                MCStructure to Commands Converter Logic                   //
+// ========================================================================== //
+let mcStructure_GUI_X_OFFSET = 0;
+let mcStructure_GUI_Y_OFFSET = 0;
+let mcStructure_GUI_Z_OFFSET = 0;
+let mcStructure_GUI_BLOCKS_TO_IGNORE = ["minecraft:air", "minecraft:structure_block", "minecraft:structure_void"];
+let mcStructure_GUI_KEEP_WATERLOG = false;
+const mcStructure_PLACE_AIR_IN_WATERLOG_LAYER_CONST = false;
+let mcStructure_GUI_INCLUDE_BLOCK_STATES = true;
+let mcStructure_selectedFile = null;
+
+function deepCopyForMcStructure(obj) {
+    if (obj === null || typeof obj !== 'object') {
+        return obj;
+    }
+    if (obj instanceof Date) {
+        return new Date(obj.getTime());
+    }
+    if (Array.isArray(obj)) {
+        const copiedArr = [];
+        for (let i = 0; i < obj.length; i++) {
+            copiedArr[i] = deepCopyForMcStructure(obj[i]);
+        }
+        return copiedArr;
+    }
+    const copiedObj = {};
+    for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            if (typeof obj[key] === 'bigint') {
+                copiedObj[key] = obj[key];
+            } else {
+                copiedObj[key] = deepCopyForMcStructure(obj[key]);
+            }
+        }
+    }
+    return copiedObj;
+}
+function parseNbtForMcStructure(arrayBuffer) {
+    const dataView = new DataView(arrayBuffer);
+    let offset = 0;
+    const textDecoder = new TextDecoder('utf-8');
+    function readTagType() {
+        if (offset >= dataView.byteLength) throw new Error("NBT Parsing Error (MCStructure): Unexpected end of buffer while reading tag type.");
+        const type = dataView.getUint8(offset);
+        offset += 1;
+        return type;
+    }
+    function readTagName() {
+        if (offset + 2 > dataView.byteLength) throw new Error("NBT Parsing Error (MCStructure): Unexpected end of buffer while reading tag name length.");
+        const length = dataView.getUint16(offset, true);
+        offset += 2;
+        if (offset + length > dataView.byteLength) throw new Error(`NBT Parsing Error (MCStructure): Tag name length ${length} exceeds buffer bounds.`);
+        const value = textDecoder.decode(new Uint8Array(arrayBuffer, offset, length));
+        offset += length;
+        return value;
+    }
+    function readTagPayload(tagType) {
+        switch (tagType) {
+            case TAG_END: return null;
+            case TAG_BYTE:
+                if (offset >= dataView.byteLength) throw new Error("NBT Parsing Error (MCStructure): Unexpected end of buffer while reading TAG_BYTE.");
+                const byteVal = dataView.getInt8(offset); offset += 1; return { type: TAG_BYTE, value: byteVal };
+            case TAG_SHORT:
+                if (offset + 2 > dataView.byteLength) throw new Error("NBT Parsing Error (MCStructure): Unexpected end of buffer while reading TAG_SHORT.");
+                const shortVal = dataView.getInt16(offset, true); offset += 2; return { type: TAG_SHORT, value: shortVal };
+            case TAG_INT:
+                if (offset + 4 > dataView.byteLength) throw new Error("NBT Parsing Error (MCStructure): Unexpected end of buffer while reading TAG_INT.");
+                const intVal = dataView.getInt32(offset, true); offset += 4; return { type: TAG_INT, value: intVal };
+            case TAG_LONG:
+                if (offset + 8 > dataView.byteLength) throw new Error("NBT Parsing Error (MCStructure): Unexpected end of buffer while reading TAG_LONG.");
+                const longVal = dataView.getBigInt64(offset, true); offset += 8; return { type: TAG_LONG, value: longVal };
+            case TAG_FLOAT:
+                if (offset + 4 > dataView.byteLength) throw new Error("NBT Parsing Error (MCStructure): Unexpected end of buffer while reading TAG_FLOAT.");
+                const floatVal = dataView.getFloat32(offset, true); offset += 4; return { type: TAG_FLOAT, value: floatVal };
+            case TAG_DOUBLE:
+                if (offset + 8 > dataView.byteLength) throw new Error("NBT Parsing Error (MCStructure): Unexpected end of buffer while reading TAG_DOUBLE.");
+                const doubleVal = dataView.getFloat64(offset, true); offset += 8; return { type: TAG_DOUBLE, value: doubleVal };
+            case TAG_BYTE_ARRAY:
+                if (offset + 4 > dataView.byteLength) throw new Error("NBT Parsing Error (MCStructure): Unexpected end of buffer while reading TAG_BYTE_ARRAY length.");
+                const byteArrayLength = dataView.getInt32(offset, true); offset += 4;
+                if (byteArrayLength < 0) throw new Error(`NBT Parsing Error (MCStructure): Invalid negative Byte Array length ${byteArrayLength}.`);
+                if (offset + byteArrayLength > dataView.byteLength) throw new Error(`NBT Parsing Error (MCStructure): Byte Array length ${byteArrayLength} exceeds buffer bounds.`);
+                const byteArray = []; for (let i = 0; i < byteArrayLength; i++) { byteArray.push(dataView.getInt8(offset + i)); }
+                offset += byteArrayLength; return { type: TAG_BYTE_ARRAY, value: byteArray };
+            case TAG_STRING:
+                if (offset + 2 > dataView.byteLength) throw new Error("NBT Parsing Error (MCStructure): Unexpected end of buffer while reading TAG_STRING length.");
+                const length = dataView.getUint16(offset, true); offset += 2;
+                if (length < 0) throw new Error(`NBT Parsing Error (MCStructure): Invalid negative String length ${length}.`);
+                if (offset + length > dataView.byteLength) throw new Error(`NBT Parsing Error (MCStructure): String length ${length} exceeds buffer bounds.`);
+                const strValue = textDecoder.decode(new Uint8Array(arrayBuffer, offset, length)); offset += length;
+                return { type: TAG_STRING, value: strValue };
+            case TAG_LIST:
+                if (offset + 5 > dataView.byteLength) throw new Error("NBT Parsing Error (MCStructure): Unexpected end of buffer while reading TAG_LIST header.");
+                const listTagType = dataView.getUint8(offset); offset += 1;
+                const listLength = dataView.getInt32(offset, true); offset += 4;
+                if (listLength < 0) throw new Error(`NBT Parsing Error (MCStructure): Invalid negative List length ${listLength}.`);
+                const list = [];
+                for (let i = 0; i < listLength; i++) {
+                    if (offset >= dataView.byteLength && i < listLength) throw new Error(`NBT Parsing Error (MCStructure): Unexpected end of buffer inside TAG_LIST (index ${i}/${listLength}, type ${listTagType}).`);
+                    list.push(readTagPayload(listTagType));
+                }
+                return { type: TAG_LIST, value: list, listType: listTagType };
+            case TAG_COMPOUND:
+                const compound = {};
+                while (true) {
+                    if (offset >= dataView.byteLength) throw new Error("NBT Parsing Error (MCStructure): Unexpected end of buffer while expecting next tag type in TAG_COMPOUND.");
+                    const tagTypeInCompound = readTagType();
+                    if (tagTypeInCompound === TAG_END) break;
+                    const tagName = readTagName();
+                    if (offset >= dataView.byteLength && tagTypeInCompound !== TAG_END) throw new Error(`NBT Parsing Error (MCStructure): Unexpected end of buffer before reading payload for tag "${tagName}" (type ${tagTypeInCompound}) in TAG_COMPOUND.`);
+                    compound[tagName] = readTagPayload(tagTypeInCompound);
+                }
+                return { type: TAG_COMPOUND, value: compound };
+            case TAG_INT_ARRAY:
+                if (offset + 4 > dataView.byteLength) throw new Error("NBT Parsing Error (MCStructure): Unexpected end of buffer while reading TAG_INT_ARRAY length.");
+                const intArrayLength = dataView.getInt32(offset, true); offset += 4;
+                if (intArrayLength < 0) throw new Error(`NBT Parsing Error (MCStructure): Invalid negative Int Array length ${intArrayLength}.`);
+                if (offset + intArrayLength * 4 > dataView.byteLength) throw new Error(`NBT Parsing Error (MCStructure): Int Array length ${intArrayLength} exceeds buffer bounds.`);
+                const intArray = []; for (let i = 0; i < intArrayLength; i++) { intArray.push(dataView.getInt32(offset + i * 4, true)); }
+                offset += intArrayLength * 4; return { type: TAG_INT_ARRAY, value: intArray };
+            case TAG_LONG_ARRAY:
+                if (offset + 4 > dataView.byteLength) throw new Error("NBT Parsing Error (MCStructure): Unexpected end of buffer while reading TAG_LONG_ARRAY length.");
+                const longArrayLength = dataView.getInt32(offset, true); offset += 4;
+                if (longArrayLength < 0) throw new Error(`NBT Parsing Error (MCStructure): Invalid negative Long Array length ${longArrayLength}.`);
+                if (offset + longArrayLength * 8 > dataView.byteLength) throw new Error(`NBT Parsing Error (MCStructure): Long Array length ${longArrayLength} exceeds buffer bounds.`);
+                const longArray = []; for (let i = 0; i < longArrayLength; i++) { longArray.push(dataView.getBigInt64(offset + i * 8, true)); }
+                offset += longArrayLength * 8; return { type: TAG_LONG_ARRAY, value: longArray };
+            default: throw new Error(`NBT Parsing Error (MCStructure): Unknown tag type: ${tagType} at offset ${offset - 1}`);
+        }
+    }
+    const rootType = readTagType();
+    if (rootType !== TAG_COMPOUND) {
+        if (rootType === TAG_END && offset === 1 && dataView.byteLength <= 1) {
+            console.warn("MCStructure: Read TAG_END at the beginning. Assuming empty NBT structure.");
+            return { '': { type: TAG_COMPOUND, value: {} } };
+        }
+        throw new Error(`NBT Parsing Error (MCStructure): Expected root tag type TAG_COMPOUND (10), got ${rootType}`);
+    }
+    const rootName = readTagName();
+    const rootCompoundTag = readTagPayload(TAG_COMPOUND);
+    return { [rootName]: rootCompoundTag };
+}
+class ProcessStructureMcStructure {
+    constructor(nbtArrayBuffer) {
+        let parsedNbtRoot = parseNbtForMcStructure(nbtArrayBuffer);
+        let rootCompoundTag = null;
+        const rootKeys = Object.keys(parsedNbtRoot);
+        if (rootKeys.length === 1) {
+            rootCompoundTag = parsedNbtRoot[rootKeys[0]];
+        } else if ("" in parsedNbtRoot && parsedNbtRoot[""].type === TAG_COMPOUND) {
+            rootCompoundTag = parsedNbtRoot[""];
+        } else if (rootKeys.length > 1) {
+             console.warn("MCStructure NBT Warning: Root contains multiple keys. Attempting to find a primary compound.");
+            for (const key of rootKeys) {
+                const potentialTag = parsedNbtRoot[key];
+                if (potentialTag && potentialTag.type === TAG_COMPOUND && Object.keys(potentialTag.value).length > 0) {
+                    rootCompoundTag = potentialTag; break;
+                }
+            }
+             if (!rootCompoundTag && "" in parsedNbtRoot) { rootCompoundTag = parsedNbtRoot[""]; }
+        }
+        if (!rootCompoundTag || rootCompoundTag.type !== TAG_COMPOUND || !rootCompoundTag.value) {
+             throw new Error(`MCStructure: Could not determine the main root compound or it's invalid. Found keys: ${rootKeys.join(', ')}`);
+        }
+        this.NBTData = rootCompoundTag.value;
+        const requiredKeys = ["size", "structure_world_origin", "structure"];
+        for (const key of requiredKeys) {
+            if (!(key in this.NBTData) || !this.NBTData[key] || typeof this.NBTData[key].type === 'undefined') {
+                throw new Error(`MCStructure NBT data is missing or has invalid required key: '${key}'.`);
+            }
+        }
+        const sizeTag = this.NBTData.size;
+        if (!sizeTag || sizeTag.type !== TAG_LIST || sizeTag.listType !== TAG_INT || sizeTag.value?.length !== 3) {
+            throw new Error(`MCStructure NBT 'size' key is not a valid List<Int>[3].`);
+        }
+        this.size = sizeTag.value.map(intTag => intTag.value);
+        if (this.size.some(isNaN) || this.size.some(s => s <= 0 || !Number.isInteger(s))) {
+            throw new Error(`MCStructure: Invalid structure size: [${this.size.join(', ')}]. Dimensions must be positive integers.`);
+        }
+        const originTag = this.NBTData.structure_world_origin;
+        if (!originTag || originTag.type !== TAG_LIST || originTag.listType !== TAG_INT || originTag.value?.length !== 3) {
+            throw new Error(`MCStructure NBT 'structure_world_origin' key is not a valid List<Int>[3].`);
+        }
+        this.mins = originTag.value.map(intTag => intTag.value);
+        if (this.mins.some(isNaN)) throw new Error(`MCStructure NBT 'structure_world_origin' contains non-numeric values.`);
+        this.origin = [...this.mins];
+        this.maxs = [ this.mins[0] + this.size[0] - 1, this.mins[1] + this.size[1] - 1, this.mins[2] + this.size[2] - 1 ];
+        const structureTag = this.NBTData.structure;
+        if (!structureTag || structureTag.type !== TAG_COMPOUND || !structureTag.value) {
+            throw new Error(`MCStructure NBT 'structure' key is not a valid Compound tag.`);
+        }
+        const structureData = structureTag.value;
+        const paletteTag = structureData.palette;
+        if (!paletteTag || paletteTag.type !== TAG_COMPOUND || !paletteTag.value) {
+            throw new Error(`MCStructure NBT 'structure.palette' key is not a valid Compound tag.`);
+        }
+        const paletteContainer = paletteTag.value;
+        const defaultPaletteTag = paletteContainer.default;
+        if (!defaultPaletteTag || defaultPaletteTag.type !== TAG_COMPOUND || !defaultPaletteTag.value) {
+            throw new Error(`MCStructure NBT 'structure.palette.default' key is not a valid Compound tag.`);
+        }
+        const blockPaletteListTag = defaultPaletteTag.value.block_palette;
+        if (!blockPaletteListTag || blockPaletteListTag.type !== TAG_LIST || blockPaletteListTag.listType !== TAG_COMPOUND) {
+            throw new Error(`MCStructure: Unsupported palette format. Expected 'structure.palette.default.block_palette' as List<Compound>.`);
+        }
+        this.rawPaletteTags = blockPaletteListTag.value;
+        const blockIndicesListTag = structureData.block_indices;
+        if (!blockIndicesListTag || blockIndicesListTag.type !== TAG_LIST || blockIndicesListTag.value?.length === 0) {
+            throw new Error(`MCStructure NBT 'structure.block_indices' is not a valid non-empty List.`);
+        }
+        const mainIndicesListTag = blockIndicesListTag.value[0];
+        if (!mainIndicesListTag || mainIndicesListTag.type !== TAG_LIST || mainIndicesListTag.listType !== TAG_INT) {
+            throw new Error(`MCStructure NBT 'structure.block_indices[0]' is not a valid List<Int>.`);
+        }
+        this.rawBlockIndicesLayer0 = mainIndicesListTag.value.map(intTag => intTag.value);
+        if (this.rawBlockIndicesLayer0.some(isNaN)) {
+            this.rawBlockIndicesLayer0 = this.rawBlockIndicesLayer0.map(k => isNaN(k) ? 0 : k);
+        }
+        this.rawBlockIndicesLayer1 = null;
+        if (blockIndicesListTag.value.length > 1) {
+            const secondaryIndicesListTag = blockIndicesListTag.value[1];
+            if (secondaryIndicesListTag && secondaryIndicesListTag.type === TAG_LIST && secondaryIndicesListTag.listType === TAG_INT) {
+                this.rawBlockIndicesLayer1 = secondaryIndicesListTag.value.map(intTag => intTag.value);
+                if (this.rawBlockIndicesLayer1.some(isNaN)) {
+                    this.rawBlockIndicesLayer1 = this.rawBlockIndicesLayer1.map(k => isNaN(k) ? 0 : k);
+                }
+            } else { console.log("MCStructure: No valid secondary block layer (layer 1) found in block_indices."); }
+        }
+        const expectedLength = this.size[0] * this.size[1] * this.size[2];
+        if (this.rawBlockIndicesLayer0.length !== expectedLength) {
+            if (this.rawBlockIndicesLayer0.length > expectedLength) {
+                 console.warn(`MCStructure: Block data length for layer 0 (${this.rawBlockIndicesLayer0.length}) is greater than structure size (${expectedLength}). Truncating.`);
+                 this.rawBlockIndicesLayer0 = this.rawBlockIndicesLayer0.slice(0, expectedLength);
+            } else {
+                 throw new Error(`MCStructure: Block data length for layer 0 (${this.rawBlockIndicesLayer0.length}) does not match structure size (${expectedLength}).`);
+            }
+        }
+        if (this.rawBlockIndicesLayer1 && this.rawBlockIndicesLayer1.length !== expectedLength) {
+             console.warn(`MCStructure: Block data length for layer 1 (${this.rawBlockIndicesLayer1.length}) does not match structure size (${expectedLength}). It might be padded or truncated.`);
+        }
+        this.getBlockmap();
+    }
+    getIndex(x, y, z) {
+        const [sx, sy, sz] = this.size;
+        if (x < 0 || x >= sx || y < 0 || y >= sy || z < 0 || z >= sz) {
+            throw new RangeError(`MCStructure: Coordinates (${x},${y},${z}) out of bounds for size (${sx},${sy},${sz})`);
+        }
+        return x * sy * sz + y * sz + z;
+    }
+    getBlockmap() {
+        this.palette = [{ name: "minecraft:air", states: {} }];
+        let index_of_air_in_raw_palette = -1;
+        for (let i = 0; i < this.rawPaletteTags.length; i++) {
+            const blockEntryTag = this.rawPaletteTags[i];
+            if (blockEntryTag.type !== TAG_COMPOUND || !blockEntryTag.value) {
+                console.warn(`MCStructure: Invalid palette entry at raw index ${i}, defaulting to air.`);
+                this.palette.push({ name: "minecraft:air", states: {} }); continue;
+            }
+            const entryData = blockEntryTag.value;
+            const nameTag = entryData.name;
+            const statesTag = entryData.states;
+            const blockName = (nameTag?.type === TAG_STRING) ? nameTag.value : 'minecraft:air';
+            let blockStates = {};
+            if (statesTag?.type === TAG_COMPOUND && statesTag.value) {
+                blockStates = statesTag.value;
+            }
+            const processedEntry = { name: blockName, states: blockStates };
+            if (entryData.version?.type === TAG_INT) {
+                processedEntry.version = entryData.version.value;
+            }
+            this.palette.push(processedEntry);
+            if (blockName === "minecraft:air" && index_of_air_in_raw_palette === -1) {
+                index_of_air_in_raw_palette = i;
+            }
+        }
+        const mapRawIndicesToCube = (rawIndices, layerName) => {
+            if (!rawIndices) return null;
+            const cube = new Int32Array(this.size[0] * this.size[1] * this.size[2]);
+            const maxIndex = Math.min(rawIndices.length, cube.length);
+            for (let i = 0; i < maxIndex; i++) {
+                const originalRawIndex = rawIndices[i];
+                if (originalRawIndex < 0) {
+                    cube[i] = 0;
+                     if (layerName === "Layer 1 (Waterlog)" && originalRawIndex !== -1) {
+                        console.warn(`MCStructure Warning (${layerName}): Found unusual negative block index ${originalRawIndex} at flat index ${i}. Mapping to air (palette index 0).`);
+                    } else if (layerName !== "Layer 1 (Waterlog)" && originalRawIndex < 0) {
+                         console.warn(`MCStructure Warning (${layerName}): Found negative block index ${originalRawIndex} at flat index ${i}. Mapping to air (palette index 0).`);
+                    }
+                    continue;
+                }
+                if (index_of_air_in_raw_palette !== -1 && originalRawIndex === index_of_air_in_raw_palette) {
+                    cube[i] = 0;
+                } else {
+                    const targetPaletteIndex = originalRawIndex + 1;
+                    if (targetPaletteIndex >= this.palette.length) {
+                        console.warn(`MCStructure Warning (${layerName}): Raw index ${originalRawIndex} maps to palette index ${targetPaletteIndex} (Out of Bounds for current palette size ${this.palette.length}). Mapping to air (palette index 0).`);
+                        cube[i] = 0;
+                    } else {
+                        cube[i] = targetPaletteIndex;
+                    }
+                }
+            }
+            if (rawIndices.length > cube.length) {
+                 console.warn(`MCStructure (${layerName}): Raw indices array (${rawIndices.length}) was longer than cube size (${cube.length}). Extra indices ignored.`);
+            } else if (rawIndices.length < cube.length) {
+                 console.warn(`MCStructure (${layerName}): Raw indices array (${rawIndices.length}) was shorter than cube size (${cube.length}). Remaining cube elements will be 0 (air).`);
+            }
+            return cube;
+        };
+        this.cubeLayer0 = mapRawIndicesToCube(this.rawBlockIndicesLayer0, "Layer 0 (Main)");
+        if (this.rawBlockIndicesLayer1) {
+            this.cubeLayer1 = mapRawIndicesToCube(this.rawBlockIndicesLayer1, "Layer 1 (Waterlog)");
+        } else { this.cubeLayer1 = null; }
+    }
+    get_block(x, y, z, layerIndex = 0) {
+        if (x < 0 || x >= this.size[0] || y < 0 || y >= this.size[1] || z < 0 || z >= this.size[2]) {
+            throw new RangeError(`MCStructure: Coordinates (${x},${y},${z}) out of bounds for size (${this.size.join(',')})`);
+        }
+        const cube = (layerIndex === 1 && this.cubeLayer1) ? this.cubeLayer1 : this.cubeLayer0;
+        if (!cube) { return deepCopyForMcStructure(this.palette[0]); }
+        const flatIndex = this.getIndex(x, y, z);
+         if (flatIndex >= cube.length) {
+             console.warn(`MCStructure get_block: flatIndex ${flatIndex} out of bounds for cube length ${cube.length}. Coords (${x},${y},${z}), Layer ${layerIndex}. Returning air.`);
+             return deepCopyForMcStructure(this.palette[0]);
+        }
+        const paletteIndex = cube[flatIndex];
+        if (paletteIndex >= 0 && paletteIndex < this.palette.length) {
+            try { return deepCopyForMcStructure(this.palette[paletteIndex]); } catch (e) {
+                 console.error(`MCStructure: Error deep copying palette entry at index ${paletteIndex}:`, this.palette[paletteIndex], e);
+                 return deepCopyForMcStructure(this.palette[0]);
+            }
+        } else {
+             console.warn(`MCStructure get_block: Invalid paletteIndex ${paletteIndex} at flatIndex ${flatIndex}. Coords (${x},${y},${z}), Layer ${layerIndex}. Returning air.`);
+            return deepCopyForMcStructure(this.palette[0]);
+        }
+    }
+    _get_block_unchecked(x, y, z, layerIndex = 0) {
+        const cube = (layerIndex === 1 && this.cubeLayer1) ? this.cubeLayer1 : this.cubeLayer0;
+        if (!cube) { return this.palette[0]; }
+        const flatIndex = x * this.size[1] * this.size[2] + y * this.size[2] + z;
+        if (flatIndex >= cube.length) return this.palette[0];
+        const paletteIndex = cube[flatIndex];
+        if (paletteIndex >= 0 && paletteIndex < this.palette.length) { return this.palette[paletteIndex]; }
+        return this.palette[0];
+    }
+    getSize() { return [...this.size]; }
+}
+function formatBlockStatesForMcStructure(statesDict) {
+    if (!mcStructure_GUI_INCLUDE_BLOCK_STATES) return '';
+    if (!statesDict || typeof statesDict !== 'object' || Array.isArray(statesDict) || Object.keys(statesDict).length === 0) {
+        return '';
+    }
+    const stateParts = [];
+    const sortedKeys = Object.keys(statesDict).sort();
+    for (const key of sortedKeys) {
+        if (!Object.prototype.hasOwnProperty.call(statesDict, key)) continue;
+        const stateInfo = statesDict[key];
+        let stateValueStr = '';
+        if (!stateInfo || typeof stateInfo.type === 'undefined' || typeof stateInfo.value === 'undefined') {
+            console.warn(`MCStructure State key "${key}" has unexpected format:`, stateInfo, `- Skipping state.`); continue;
+        }
+        const nbtType = stateInfo.type;
+        const value = stateInfo.value;
+        if (nbtType === TAG_BYTE) {
+            stateValueStr = (value === 0) ? 'false' : ((value === 1) ? 'true' : String(value));
+        } else if (nbtType === TAG_SHORT || nbtType === TAG_INT || nbtType === TAG_FLOAT || nbtType === TAG_DOUBLE) {
+            stateValueStr = String(value);
+        } else if (nbtType === TAG_LONG) {
+            stateValueStr = value.toString();
+        } else if (nbtType === TAG_STRING) {
+            stateValueStr = JSON.stringify(String(value));
+        } else {
+            console.warn(`MCStructure: Unsupported NBT type (${nbtType}) in block state for key "${key}". Value:`, value, `Skipping.`); continue;
+        }
+        const formattedKey = `"${key.replace(/"/g, '\\"')}"`;
+        stateParts.push(`${formattedKey}=${stateValueStr}`);
+    }
+    return stateParts.length > 0 ? `[${stateParts.join(',')}]` : '';
+}
+function findFillVolumeForMcStructure(startX, startY, startZ, processor, processedMask, layerIndex = 0) {
+    const [sizeX, sizeY, sizeZ] = processor.getSize();
+    const targetBlockData = processor._get_block_unchecked(startX, startY, startZ, layerIndex);
+    if (!targetBlockData) { return [startX, startY, startZ]; }
+    const targetBlockString = `${targetBlockData.name}${formatBlockStatesForMcStructure(targetBlockData.states)}`;
+    function isMatch(x, y, z) {
+        const idx = processor.getIndex(x, y, z);
+        if (idx >= processedMask.length || processedMask[idx] === 1) return false;
+        const currentBlockData = processor._get_block_unchecked(x, y, z, layerIndex);
+        if (!currentBlockData) return false;
+        const currentBlockString = `${currentBlockData.name}${formatBlockStatesForMcStructure(currentBlockData.states)}`;
+        return currentBlockString === targetBlockString;
+    }
+    let x2 = startX;
+    while (x2 + 1 < sizeX && isMatch(x2 + 1, startY, startZ)) { x2 += 1; }
+    let z2 = startZ;
+    let canExpandZ = true;
+    while (canExpandZ && z2 + 1 < sizeZ) {
+        for (let xCheck = startX; xCheck <= x2; xCheck++) {
+            if (!isMatch(xCheck, startY, z2 + 1)) { canExpandZ = false; break; }
+        }
+        if (canExpandZ) z2 += 1;
+    }
+    let y2 = startY;
+    let canExpandY = true;
+    while (canExpandY && y2 + 1 < sizeY) {
+        for (let xCheck = startX; xCheck <= x2; xCheck++) {
+            for (let zCheck = startZ; zCheck <= z2; zCheck++) {
+                if (!isMatch(xCheck, y2 + 1, zCheck)) { canExpandY = false; break; }
+            }
+            if (!canExpandY) break;
+        }
+        if (canExpandY) y2 += 1;
+    }
+    return [x2, y2, z2];
+}
+function generateCommandsForLayerMcStructure(layerIndex, processor, processedMask, xOffset, yOffset, zOffset, options) {
+    const { ignoreListEffective, layerName } = options;
+    console.log(`MCStructure --- Generating commands for ${layerName} (Layer ${layerIndex}) ---`);
+    console.log(`MCStructure Effective ignore list for this layer: [${ignoreListEffective.join(', ')}]`);
+    const [sizeX, sizeY, sizeZ] = processor.getSize();
+    const commands = [];
+    let fillCount = 0; let setblockCount = 0; let skippedCount = 0; let errorCount = 0;
+    const totalBlocksInLayer = sizeX * sizeY * sizeZ;
+    for (let y = 0; y < sizeY; y++) {
+        for (let x = 0; x < sizeX; x++) {
+            for (let z = 0; z < sizeZ; z++) {
+                let currentFlatIndex = -1;
+                try {
+                    currentFlatIndex = processor.getIndex(x, y, z);
+                     if (currentFlatIndex >= processedMask.length || processedMask[currentFlatIndex] === 1) { continue; }
+                } catch (rangeError) {
+                    console.error(`MCStructure (${layerName}) Error calculating index for (${x},${y},${z}): ${rangeError.message}. Skipping.`); errorCount++; continue;
+                }
+                try {
+                    const blockData = processor.get_block(x, y, z, layerIndex);
+                    const blockName = blockData.name || "minecraft:air";
+                    if (ignoreListEffective.includes(blockName)) {
+                        processedMask[currentFlatIndex] = 1; skippedCount += 1; continue;
+                    }
+                    const [x2, y2, z2] = findFillVolumeForMcStructure(x, y, z, processor, processedMask, layerIndex);
+                    const relX1 = xOffset + x, relY1 = yOffset + y, relZ1 = zOffset + z;
+                    const relX2 = xOffset + x2, relY2 = yOffset + y2, relZ2 = zOffset + z2;
+                    const blockStatesStr = formatBlockStatesForMcStructure(blockData.states);
+                    const fullBlockStr = `${blockName}${blockStatesStr}`;
+                    const x1Str = `~${relX1}`, y1Str = `~${relY1}`, z1Str = `~${relZ1}`;
+                    if (x !== x2 || y !== y2 || z !== z2) {
+                        const x2Str = `~${relX2}`, y2Str = `~${relY2}`, z2Str = `~${relZ2}`;
+                        commands.push(`fill ${x1Str} ${y1Str} ${z1Str} ${x2Str} ${y2Str} ${z2Str} ${fullBlockStr}`);
+                        fillCount++;
+                        for (let fillX = x; fillX <= x2; fillX++) {
+                            for (let fillY = y; fillY <= y2; fillY++) {
+                                for (let fillZ = z; fillZ <= z2; fillZ++) {
+                                   try {
+                                        const fillIndex = processor.getIndex(fillX, fillY, fillZ);
+                                        if(fillIndex < processedMask.length) processedMask[fillIndex] = 1;
+                                    } catch(e) { /* ignore */ }
+                                }
+                            }
+                        }
+                    } else {
+                        commands.push(`setblock ${x1Str} ${y1Str} ${z1Str} ${fullBlockStr}`);
+                        setblockCount++; processedMask[currentFlatIndex] = 1;
+                    }
+                } catch (e) {
+                    errorCount++; console.error(`MCStructure (${layerName}) Error processing at (${x},${y},${z}): ${e.message}. Stack: ${e.stack ? e.stack : '(no stack)'}`);
+                     if (currentFlatIndex !== -1 && currentFlatIndex < processedMask.length && processedMask[currentFlatIndex] === 0) { processedMask[currentFlatIndex] = 1; }
+                }
+            }
+        }
+    }
+    console.log(`MCStructure --- ${layerName} (Layer ${layerIndex}) Summary ---`);
+    console.log(`MCStructure Total blocks considered in layer: ${totalBlocksInLayer}`);
+    console.log(`MCStructure Skipped ${skippedCount} ignored blocks.`);
+    if (errorCount > 0) console.log(`MCStructure Encountered errors for ${errorCount} blocks.`);
+    console.log(`MCStructure Generated ${fillCount} /fill and ${setblockCount} /setblock commands.`);
+    let processedMaskCount = 0;
+    for(let i=0; i < processedMask.length; i++) if (processedMask[i] === 1) processedMaskCount++;
+    if (processedMaskCount !== totalBlocksInLayer) {
+        console.warn(`MCStructure (${layerName}) Warning: Mask count (${processedMaskCount}) != total blocks (${totalBlocksInLayer}). ${totalBlocksInLayer - processedMaskCount} unmasked.`);
+    } else { console.log(`MCStructure (${layerName}) Sanity check: All positions accounted for in mask.`); }
+    return commands;
+}
+function structureToRelativeSetblocksMcStructure(nbtArrayBuffer) {
+    console.log(`MCStructure: Processing structure from NBT data.`);
+    let structProcessor;
+    try { structProcessor = new ProcessStructureMcStructure(nbtArrayBuffer); } catch (e) {
+        console.error(`MCStructure: Error loading/processing structure: ${e.message}\n${e.stack ? e.stack : '(no stack)'}`); throw e;
+    }
+    const size = structProcessor.getSize();
+    const [sizeX, sizeY, sizeZ] = size;
+    if (sizeX <= 0 || sizeY <= 0 || sizeZ <= 0) {
+        console.log(`MCStructure: Invalid structure size: [${size.join(', ')}]. Aborting.`); return [];
+    }
+    console.log(`MCStructure: Dimensions (X,Y,Z): [${size.join(', ')}], Origin: [${structProcessor.mins.join(', ')}]`);
+    console.log(`MCStructure: Offset (X,Y,Z): [${mcStructure_GUI_X_OFFSET}, ${mcStructure_GUI_Y_OFFSET}, ${mcStructure_GUI_Z_OFFSET}]`);
+    const totalBlocks = sizeX * sizeY * sizeZ;
+    let allCommands = [];
+    if (mcStructure_GUI_KEEP_WATERLOG && structProcessor.cubeLayer1) {
+        const processedMaskLayer1 = new Uint8Array(totalBlocks);
+        const waterlogLayerOptions = { ignoreListEffective: mcStructure_PLACE_AIR_IN_WATERLOG_LAYER_CONST ? [] : ["minecraft:air"], layerName: "Waterlog Layer" };
+        const waterlogCommands = generateCommandsForLayerMcStructure(1, structProcessor, processedMaskLayer1, mcStructure_GUI_X_OFFSET, mcStructure_GUI_Y_OFFSET, mcStructure_GUI_Z_OFFSET, waterlogLayerOptions);
+        allCommands = allCommands.concat(waterlogCommands);
+    } else { if (mcStructure_GUI_KEEP_WATERLOG) console.log("MCStructure: Skipping waterlog layer (KEEP_WATERLOG true, but layer 1 data missing/invalid)."); }
+    if (!structProcessor.cubeLayer0) {
+         console.error("MCStructure: Critical error: Main block layer (Layer 0) data is missing. Cannot proceed with main layer."); return allCommands;
+    }
+    const processedMaskLayer0 = new Uint8Array(totalBlocks);
+    const mainLayerOptions = { ignoreListEffective: mcStructure_GUI_BLOCKS_TO_IGNORE, layerName: "Main Block Layer" };
+    const mainCommands = generateCommandsForLayerMcStructure(0, structProcessor, processedMaskLayer0, mcStructure_GUI_X_OFFSET, mcStructure_GUI_Y_OFFSET, mcStructure_GUI_Z_OFFSET, mainLayerOptions);
+    allCommands = allCommands.concat(mainCommands);
+    console.log(`MCStructure --- Overall Processing Summary ---`);
+    console.log(`MCStructure: Total commands generated from all layers: ${allCommands.length}`);
+    return allCommands;
+}
 
 // ========================================================================== //
 //                      Java to Bedrock Translator                            //
@@ -983,10 +1414,6 @@ function generateSchemCommands(schematicData, dims, offset, includeAir) {
 
 // Global state for Java to Bedrock tool
 let javaBedrockFileContent = '';
-
-// NOTE: The actual translation logic is now expected to be globally available
-// from translator.js, specifically the `translateCommands` async function.
-// This section in script.js only handles the UI interaction.
 
 // ========================================================================== //
 //                           UI Interaction Logic                             //
@@ -999,12 +1426,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebarLinks = document.querySelectorAll('#sidebar .tool-link');
     const toolSections = document.querySelectorAll('.tool-section');
     const closeSidebarButton = document.getElementById('close-sidebar-button');
-
-    // --- Tool Specific Elements ---
-// Raw to NBT (Example - adapted below)
-const rawToNbtInputFile_UI = document.getElementById('raw-to-nbt-input-file'); // Need unique names for DOM refs
-const rawToNbtDropArea_UI = document.getElementById('raw-to-nbt-drop-area');
-// ... other Raw to NBT UI elements ...
 
     // Commands to Structure
     const cmdStructDropArea = document.getElementById('cmd-struct-drop-area');
@@ -1025,14 +1446,13 @@ const rawToNbtDropArea_UI = document.getElementById('raw-to-nbt-drop-area');
     const nbtToRawPreviewText = document.getElementById('nbt-raw-preview-text');
     const nbtToRawDownloadButton = document.getElementById('nbt-raw-download-button');
     const nbtToRawValidationMessage = document.getElementById('nbt-raw-validation-message');
-    const nbtToRawFilterCheckbox = document.getElementById('nbt-raw-filter-checkbox');
+    const nbtToRawFilterCheckbox = document.getElementById('nbt-raw-filter-checkbox'); // Checkbox remains for UI, but logic removed
     const nbtToRawFileNameDisplay = nbtToRawDropArea ? nbtToRawDropArea.querySelector('span.file-name-display') : null;
-
 
     // Schematic to Commands
     const schemDropArea = document.getElementById('schem-drop-area');
     const schemInputFile = document.getElementById('schem-input-file');
-    const schemFileNameDisplay = document.getElementById('schem-file-name'); // Specific ID here
+    const schemFileNameDisplay = document.getElementById('schem-file-name');
     const schemGenerateButton = document.getElementById('schem-generate-button');
     const schemOutputNameInput = document.getElementById('schem-outputName');
     const schemIncludeAirCheckbox = document.getElementById('schem-includeAir');
@@ -1040,6 +1460,20 @@ const rawToNbtDropArea_UI = document.getElementById('raw-to-nbt-drop-area');
     const schemOffsetYInput = document.getElementById('schem-offsetY');
     const schemOffsetZInput = document.getElementById('schem-offsetZ');
     const schemStatusDiv = document.getElementById('schem-status');
+
+    // MCStructure to Commands
+    const mcstructureDropArea = document.getElementById('mcstructure-drop-area');
+    const mcstructureFileInput = document.getElementById('mcstructure-file-input');
+    const mcstructureFileNameDisplay = document.getElementById('mcstructure-file-name');
+    const mcstructureGenerateButton = document.getElementById('mcstructure-generate-button');
+    const mcstructureStatusDiv = document.getElementById('mcstructure-status');
+    const mcstructureOutputNameInput = document.getElementById('mcstructure-outputName');
+    const mcstructureIncludeAirCheckbox = document.getElementById('mcstructure-includeAir');
+    const mcstructureIncludeBlockStatesCheckbox = document.getElementById('mcstructure-includeBlockStates');
+    const mcstructureProcessWaterlogLayerCheckbox = document.getElementById('mcstructure-processWaterlogLayer');
+    const mcstructureOffsetXInput = document.getElementById('mcstructure-offsetX');
+    const mcstructureOffsetYInput = document.getElementById('mcstructure-offsetY');
+    const mcstructureOffsetZInput = document.getElementById('mcstructure-offsetZ');
 
     // Java to Bedrock
     const javaBedrockDropArea = document.getElementById('java-bedrock-drop-area');
@@ -1051,48 +1485,39 @@ const rawToNbtDropArea_UI = document.getElementById('raw-to-nbt-drop-area');
     const javaBedrockValidationMessage = document.getElementById('java-bedrock-validation-message');
     const javaBedrockFileNameDisplay = javaBedrockDropArea ? javaBedrockDropArea.querySelector('span.file-name-display') : null;
 
-
     // --- Helper Functions ---
     function showValidationMessage(element, message, type = 'error') {
         if (!element) return;
         element.textContent = message;
-        // Reset classes, then add the appropriate one
-        element.className = 'validation-message'; // Base class
-        element.classList.add(type); // Add 'error', 'success', or 'info' class
+        element.className = 'validation-message';
+        element.classList.add(type);
         element.style.display = 'block';
-
-        // Auto-hide non-info messages after 5 seconds
-        if (type !== 'info') {
+        if (type !== 'info' && type !== 'success_long') {
             setTimeout(() => {
-                 // Only hide if the message hasn't changed in the meantime
                  if (element.style.display === 'block' && element.textContent === message) {
                      element.style.display = 'none';
                  }
             }, 5000);
         }
+         if (type === 'success_long') {
+            element.classList.remove('success_long');
+            element.classList.add('success');
+        }
     }
-
     function hideValidationMessage(element) {
         if (element) {
             element.textContent = '';
             element.style.display = 'none';
-            element.className = 'validation-message'; // Reset classes
+            element.className = 'validation-message';
         }
     }
-
-    // Generic Drop Area Setup
     function setupDropAreaListeners(dropArea, fileInput, fileNameDisplayElement) {
         if (!dropArea || !fileInput || !fileNameDisplayElement) {
              console.warn("setupDropAreaListeners: Missing required elements for", fileInput?.id);
              return;
         }
-
-        const clickHandler = () => {
-            // Allow selecting a new file even if one is loaded
-            fileInput.click();
-        };
+        const clickHandler = () => { fileInput.click(); };
         dropArea.addEventListener('click', clickHandler);
-
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropArea.addEventListener(eventName, preventDefaults, false);
         });
@@ -1102,171 +1527,96 @@ const rawToNbtDropArea_UI = document.getElementById('raw-to-nbt-drop-area');
         ['dragleave', 'drop'].forEach(eventName => {
             dropArea.addEventListener(eventName, () => dropArea.classList.remove('dragover'), false);
         });
-
         dropArea.addEventListener('drop', (e) => {
-            const dt = e.dataTransfer;
-            const files = dt.files;
+            const dt = e.dataTransfer; const files = dt.files;
             if (files.length > 0) {
-                fileInput.files = files; // Assign dropped files to the hidden input
-                // Manually trigger the 'change' event for consistency with clicks
+                fileInput.files = files;
                 const event = new Event('change', { bubbles: true });
                 fileInput.dispatchEvent(event);
             }
         }, false);
-
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
+        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
     }
-
-    // Generic File Input Change Handler Setup
-    function setupFileInputHandler(fileInput, fileContentVarSetter, fileNameDisplayElement, validationElement, allowedTypes = [], handleFileReadFunc) {
+    function setupFileInputHandler(fileInput, fileObjectSetter, fileNameDisplayElement, validationElement, allowedExtensions = [], fileReadFunction) {
          if (!fileInput || !fileNameDisplayElement || !validationElement) {
              console.warn("setupFileInputHandler: Missing required elements for", fileInput?.id);
              return;
          }
         const defaultDisplayText = 'No file selected';
-
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
-                let isValid = false;
-                const lowerName = file.name.toLowerCase();
-                const fileType = file.type;
-
-                if (allowedTypes.length === 0) {
-                    isValid = true; // No specific types required
-                } else {
-                    isValid = allowedTypes.some(type => {
-                        if (type.startsWith('.')) {
-                             return lowerName.endsWith(type); // Check extension
-                        } else {
-                             return fileType === type; // Check MIME type
-                        }
-                    });
-                }
+                let isValid = false; const lowerName = file.name.toLowerCase();
+                if (allowedExtensions.length === 0) { isValid = true; }
+                else { isValid = allowedExtensions.some(ext => lowerName.endsWith(ext)); }
 
                 if (isValid) {
-                    fileNameDisplayElement.textContent = file.name + ' loaded.';
+                    fileNameDisplayElement.textContent = file.name + ' selected.';
                     hideValidationMessage(validationElement);
-                    // Call the specific file reading function for this tool
-                    handleFileReadFunc(file, fileContentVarSetter);
+                    if (fileReadFunction) { fileReadFunction(file, fileObjectSetter); }
+                    else { fileObjectSetter(file); }
                 } else {
-                    showValidationMessage(validationElement, `Invalid file type. Expected: ${allowedTypes.join(', ')}`, 'error');
+                    showValidationMessage(validationElement, `Invalid file type. Expected: ${allowedExtensions.join(', ')}`, 'error');
                     fileNameDisplayElement.textContent = defaultDisplayText;
-                    fileContentVarSetter(''); // Clear content variable
-                    fileInput.value = ''; // Clear the invalid file selection
+                    fileObjectSetter(null); fileInput.value = '';
                 }
             } else {
-                // No file selected (e.g., user cancelled)
                 fileNameDisplayElement.textContent = defaultDisplayText;
-                fileContentVarSetter('');
-                hideValidationMessage(validationElement);
+                fileObjectSetter(null); hideValidationMessage(validationElement);
             }
         });
     }
 
      // --- Navigation Logic ---
     if (hamburgerButton && sidebar) {
-        hamburgerButton.addEventListener('click', (e) => {
-            e.stopPropagation();
-            sidebar.classList.toggle('active');
-        });
+        hamburgerButton.addEventListener('click', (e) => { e.stopPropagation(); sidebar.classList.toggle('active'); });
     }
     if (closeSidebarButton && sidebar) {
-         closeSidebarButton.addEventListener('click', () => {
-             sidebar.classList.remove('active');
-         });
+         closeSidebarButton.addEventListener('click', () => { sidebar.classList.remove('active'); });
      }
     document.addEventListener('click', (e) => {
         if (sidebar && sidebar.classList.contains('active') && !sidebar.contains(e.target) && e.target !== hamburgerButton && !hamburgerButton.contains(e.target)) {
              sidebar.classList.remove('active');
         }
     });
-
     sidebarLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
             const targetToolId = link.getAttribute('data-tool');
-
-            toolSections.forEach(section => {
-                section.classList.remove('active');
-                section.style.display = 'none'; // Ensure it's hidden
-            });
-            sidebarLinks.forEach(s_link => s_link.classList.remove('active')); // Deactivate all sidebar links
-
+            toolSections.forEach(section => { section.classList.remove('active'); section.style.display = 'none'; });
+            sidebarLinks.forEach(s_link => s_link.classList.remove('active'));
             const targetSection = document.getElementById(targetToolId);
             if (targetSection) {
-                targetSection.classList.add('active');
-                targetSection.style.display = 'block'; // Ensure it's visible
-                link.classList.add('active'); // Activate clicked sidebar link
-                console.log(`Switched to tool: ${targetToolId}`);
-            } else {
-                console.error(`Tool section with ID ${targetToolId} not found.`);
-            }
-
+                targetSection.classList.add('active'); targetSection.style.display = 'block';
+                link.classList.add('active'); console.log(`Switched to tool: ${targetToolId}`);
+            } else { console.error(`Tool section with ID ${targetToolId} not found.`); }
             if (sidebar) sidebar.classList.remove('active');
         });
     });
-
-    // --- Initialization: Activate the first tool ---
     toolSections.forEach((section, index) => {
         if (index === 0) {
-            section.classList.add('active');
-            section.style.display = 'block';
-            // Also activate the corresponding sidebar link
+            section.classList.add('active'); section.style.display = 'block';
             const firstLinkId = section.id;
             const firstLink = document.querySelector(`.tool-link[data-tool="${firstLinkId}"]`);
             if (firstLink) firstLink.classList.add('active');
-        } else {
-            section.classList.remove('active');
-            section.style.display = 'none';
-        }
+        } else { section.classList.remove('active'); section.style.display = 'none'; }
     });
-
-
-    // ========================================================== //
-    //                TOOL SPECIFIC EVENT LISTENERS               //
-    // ========================================================== //
 
     // --- Generic File Reader (Text) ---
     function readFileAsText(file, contentSetter) {
         const reader = new FileReader();
-        reader.onload = function(e) {
-            contentSetter(e.target.result);
-            console.log(`${file.name} read successfully (Text).`);
-        };
-        reader.onerror = function(e) {
-            console.error(`Error reading file ${file.name}:`, e);
-            contentSetter(''); // Clear content on error
-             // Show error in the specific tool's validation area (handled by caller)
-        };
+        reader.onload = function(e) { contentSetter(e.target.result); console.log(`${file.name} read successfully (Text).`); };
+        reader.onerror = function(e) { console.error(`Error reading file ${file.name}:`, e); contentSetter(''); };
         reader.readAsText(file);
     }
-
-    // --- Generic File Reader (ArrayBuffer) ---
-     function readFileAsArrayBuffer(file, objectSetter) { // Renamed setter for clarity
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            // Store the File object itself, not the content directly yet
-            objectSetter(file);
-            console.log(`${file.name} selected (ArrayBuffer pending read).`);
-        };
-        reader.onerror = function(e) {
-            console.error(`Error preparing file ${file.name} for reading:`, e);
-            objectSetter(null); // Clear object on error
-            // Show error (handled by caller)
-        };
-        // We don't read immediately, just store the file object.
-        // Reading happens on button click for ArrayBuffer types.
-         reader.readAsArrayBuffer(file); // Read but don't store globally yet
+    function downloadFile(content, fileName, contentType) {
+        const a = document.createElement('a'); const file = new Blob([content], { type: contentType });
+        a.href = URL.createObjectURL(file); a.download = fileName;
+        document.body.appendChild(a); a.click();
+        URL.revokeObjectURL(a.href); document.body.removeChild(a);
     }
 
-
-    // --- Raw to NBT Listeners (Exact structure from user provided file) ---
-
-    // Get DOM elements using specific IDs from index.html
+    // --- Raw to NBT Listeners ---
     const rawToNbtDropArea = document.getElementById('raw-to-nbt-drop-area');
     const rawToNbtInputFile = document.getElementById('raw-to-nbt-input-file');
     const rawToNbtGenerateButton = document.getElementById('raw-to-nbt-generate-button');
@@ -1276,336 +1626,134 @@ const rawToNbtDropArea_UI = document.getElementById('raw-to-nbt-drop-area');
     const rawToNbtPreviewTextarea = document.getElementById('raw-to-nbt-preview-text');
     const rawToNbtDownloadBtn = document.getElementById('raw-to-nbt-download-button');
     const rawToNbtValidationMsg = document.getElementById('raw-to-nbt-validation-message');
-
-    // File reading function (Specific to RawToNbt as defined in the provided script)
-    function rawToNbtReadFile(file) {
+    const rawToNbtFileNameDisplay = rawToNbtDropArea ? rawToNbtDropArea.querySelector('span.file-name-display') : null;
+    function rawToNbtReadFile(file, contentSetter) {
       const reader = new FileReader();
       reader.onload = function(e) {
-        rawToNbtFileContent = e.target.result; // Use the global variable
-        const dropAreaTextElement = rawToNbtDropArea.querySelector('span.file-name-display'); // Use the span for filename
-        if (dropAreaTextElement) {
-             dropAreaTextElement.textContent = `${file.name} loaded. Ready to generate NBT.`;
-        }
-        rawToNbtPreviewArea.style.display = 'none'; // Hide previous results
-        rawToNbtDownloadBtn.disabled = true;
-        hideValidationMessage(rawToNbtValidationMsg); // Use shared helper
-
+        contentSetter(e.target.result);
+        if (rawToNbtFileNameDisplay) rawToNbtFileNameDisplay.textContent = `${file.name} loaded. Ready to generate NBT.`;
+        rawToNbtPreviewArea.style.display = 'none'; rawToNbtDownloadBtn.disabled = true;
+        hideValidationMessage(rawToNbtValidationMsg);
       };
-      reader.onerror = function() {
-           showValidationMessage(rawToNbtValidationMsg, 'Error reading file.', 'error'); // Use shared helper
-           rawToNbtResetTool(); // Call reset function
-      };
+      reader.onerror = function() { showValidationMessage(rawToNbtValidationMsg, 'Error reading file.', 'error'); rawToNbtResetTool(); };
       reader.readAsText(file);
     }
-
-    // Function to attach drop area events (Specific to RawToNbt)
-    function rawToNbtAttachDropAreaEvents() {
-      if(rawToNbtDropArea) {
-        // Prevent default drag behaviors
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-          rawToNbtDropArea.addEventListener(eventName, preventDefaults, false);
-          document.body.addEventListener(eventName, preventDefaults, false);
-        });
-        ['dragenter', 'dragover'].forEach(eventName => {
-          rawToNbtDropArea.addEventListener(eventName, highlight, false);
-        });
-        ['dragleave', 'drop'].forEach(eventName => {
-          rawToNbtDropArea.addEventListener(eventName, unhighlight, false);
-        });
-        rawToNbtDropArea.addEventListener('drop', handleDrop, false);
-
-        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
-        function highlight() { rawToNbtDropArea.classList.add('dragover'); }
-        function unhighlight() { rawToNbtDropArea.classList.remove('dragover'); }
-
-        function handleDrop(e) {
-          const dt = e.dataTransfer;
-          const files = dt.files;
-          if (files.length > 0) {
-               const file = files[0];
-               // Check if it's a text file
-               if (file.type === "" || file.type === "text/plain" || file.name.toLowerCase().endsWith('.txt')) {
-                   rawToNbtInputFile.files = files; // Assign to input
-                   const event = new Event('change', { bubbles: true });
-                   rawToNbtInputFile.dispatchEvent(event); // Trigger change for consistency
-                   // rawToNbtReadFile(file); // Reading now handled by input change
-               } else {
-                   showValidationMessage(rawToNbtValidationMsg, 'Please drop a .txt file.'); // Use shared helper
-               }
-           }
-        }
-      }
-    }
-
-    // Function to reset the Raw to NBT section (Specific to RawToNbt)
     function rawToNbtResetTool() {
         rawToNbtFileContent = '';
-        const dropAreaTextElement = rawToNbtDropArea.querySelector('span.file-name-display');
-        if(dropAreaTextElement) dropAreaTextElement.textContent = 'No file selected';
-        rawToNbtPreviewArea.style.display = 'none';
-        rawToNbtNbtTitleInput.value = '';
-        rawToNbtBytesInput.value = '30000';
-        hideValidationMessage(rawToNbtValidationMsg);
-        rawToNbtDownloadBtn.disabled = true;
-        rawToNbtInputFile.value = ''; // Clear file input
-
-        // Reattach click handler for the drop area
-        if (rawToNbtDropArea) {
-            rawToNbtDropArea.onclick = function() {
-                rawToNbtInputFile.click();
-            };
-        }
-        // Reattach drag/drop
-        rawToNbtAttachDropAreaEvents();
+        if(rawToNbtFileNameDisplay) rawToNbtFileNameDisplay.textContent = 'No file selected';
+        rawToNbtPreviewArea.style.display = 'none'; rawToNbtNbtTitleInput.value = '';
+        rawToNbtBytesInput.value = '30000'; hideValidationMessage(rawToNbtValidationMsg);
+        rawToNbtDownloadBtn.disabled = true; rawToNbtInputFile.value = '';
     }
-
-
-    // Initial setup for Raw to NBT file input click and change
-    if(rawToNbtDropArea && rawToNbtInputFile) {
-        rawToNbtDropArea.onclick = function() {
-            // Allow reset only if output is visible? Or always allow selection?
-            // For robustness, always allow selecting a new file.
-             if (rawToNbtPreviewArea.style.display === 'block') {
-                 // Optionally reset the state if a file was processed
-                 console.log("RawToNBT: Resetting tool state on drop area click after generation.");
-                 rawToNbtResetTool(); // Reset before triggering click
-                 // rawToNbtInputFile.click(); // Should happen anyway due to reset? Test this.
-             }
-            rawToNbtInputFile.click();
-        };
-
-        rawToNbtInputFile.onchange = function(e) { // Use onchange for direct assignment
-            const file = e.target.files[0];
-            if (file) {
-                if (file.type === "" || file.type === "text/plain" || file.name.toLowerCase().endsWith('.txt')) {
-                    rawToNbtReadFile(file);
-                } else {
-                    showValidationMessage(rawToNbtValidationMsg, 'Please select a .txt file.');
-                    rawToNbtResetTool(); // Reset on invalid file type
-                }
-            } else {
-                 rawToNbtResetTool(); // Reset if selection is cancelled
-            }
-        };
+    if(rawToNbtDropArea) {
+        setupDropAreaListeners(rawToNbtDropArea, rawToNbtInputFile, rawToNbtFileNameDisplay);
+        setupFileInputHandler(rawToNbtInputFile, (content) => { rawToNbtFileContent = content; }, rawToNbtFileNameDisplay, rawToNbtValidationMsg, ['.txt'], rawToNbtReadFile);
     }
-
-    // Initially attach drag and drop event listeners for Raw to NBT
-    rawToNbtAttachDropAreaEvents();
-
-    // Generate NBT button event listener (Specific to RawToNbt)
     if(rawToNbtGenerateButton) {
       rawToNbtGenerateButton.addEventListener('click', () => {
-        if (!rawToNbtFileContent) { // Check specific global variable
-          showValidationMessage(rawToNbtValidationMsg, 'Please select a file.'); // Use specific validation element
-          return;
-        }
-
-        const nbtTitle = rawToNbtNbtTitleInput.value.trim(); // Use specific input element
-        const maxBytesInput = rawToNbtBytesInput.value.trim(); // Use specific input element
-        let maxBytes;
-        try {
-          maxBytes = parseInt(maxBytesInput, 10);
-          if (isNaN(maxBytes) || maxBytes <= 500) throw new Error("Value too small"); // Adjusted minimum
-        } catch(e) {
-          showValidationMessage(rawToNbtValidationMsg, 'Please enter a valid positive integer (> 500) for Max Bytes per NPC.');
-          return;
-        }
-        hideValidationMessage(rawToNbtValidationMsg); // Hide previous messages
-
+        if (!rawToNbtFileContent) { showValidationMessage(rawToNbtValidationMsg, 'Please select a file.'); return; }
+        const nbtTitle = rawToNbtNbtTitleInput.value.trim();
+        const maxBytesInput = rawToNbtBytesInput.value.trim(); let maxBytes;
+        try { maxBytes = parseInt(maxBytesInput, 10); if (isNaN(maxBytes) || maxBytes <= 500) throw new Error("Value too small");
+        } catch(e) { showValidationMessage(rawToNbtValidationMsg, 'Please enter a valid positive integer (> 500) for Max Bytes per NPC.'); return; }
+        hideValidationMessage(rawToNbtValidationMsg);
         try {
             showValidationMessage(rawToNbtValidationMsg, 'Generating NBT...', 'info');
-             // --- NBT Generation Logic (using functions defined above) ---
              const commands = getUsefulCommands(rawToNbtFileContent);
              const { normalCommands, equalsCommands } = separateCommands(commands);
-             const nbtName = nbtTitle || 'Blacklight NBT'; // Use default if no title
-
-             let nbtData = getBlockOpener(nbtName);
-             let curSec = 0;
-             let combinedNpcData = [];
-
+             const nbtName = nbtTitle || 'Blacklight NBT';
+             let nbtData = getBlockOpener(nbtName); let curSec = 0; let combinedNpcData = [];
              if (normalCommands.length > 0) {
                  const result = processNpcCommandsByBytes(normalCommands, maxBytes, nbtName, curSec, commandJoinerNormal, false);
-                 if (result.npcData) combinedNpcData.push(result.npcData);
-                 curSec += result.count;
+                 if (result.npcData) combinedNpcData.push(result.npcData); curSec += result.count;
              }
-
              if (equalsCommands.length > 0) {
                  const result = processNpcCommandsByBytes(equalsCommands, maxBytes, nbtName, curSec, commandJoinerEquals, true);
                   if (result.npcData) combinedNpcData.push(result.npcData);
-                 // curSec += result.count; // Not needed if last
              }
-
-             nbtData += combinedNpcData.join(',');
-             nbtData += getBlockCloser();
-             // --- End NBT Generation Logic ---
-
-
-             // Display preview
-             rawToNbtPreviewTextarea.value = nbtData;
-             rawToNbtPreviewArea.style.display = 'block';
-             rawToNbtDownloadBtn.disabled = false;
-             hideValidationMessage(rawToNbtValidationMsg); // Hide info message
+             nbtData += combinedNpcData.join(','); nbtData += getBlockCloser();
+             rawToNbtPreviewTextarea.value = nbtData; rawToNbtPreviewArea.style.display = 'block';
+             rawToNbtDownloadBtn.disabled = false; hideValidationMessage(rawToNbtValidationMsg);
              showValidationMessage(rawToNbtValidationMsg, 'NBT generated successfully!', 'success');
-
         } catch (e) {
-             console.error("RawToNBT Generation Error:", e);
-             hideValidationMessage(rawToNbtValidationMsg);
+             console.error("RawToNBT Generation Error:", e); hideValidationMessage(rawToNbtValidationMsg);
              showValidationMessage(rawToNbtValidationMsg, `Error generating NBT: ${e.message}`, 'error');
-             rawToNbtPreviewArea.style.display = 'none';
-             rawToNbtDownloadBtn.disabled = true;
+             rawToNbtPreviewArea.style.display = 'none'; rawToNbtDownloadBtn.disabled = true;
          }
       });
     }
-
-    // Download button event listener (Specific to RawToNbt)
     if(rawToNbtDownloadBtn) {
       rawToNbtDownloadBtn.addEventListener('click', () => {
         const nbtText = rawToNbtPreviewTextarea.value;
-        if (!nbtText) {
-            showValidationMessage(rawToNbtValidationMsg, 'No NBT data generated to download.');
-            return;
-        }
+        if (!nbtText) { showValidationMessage(rawToNbtValidationMsg, 'No NBT data generated to download.'); return; }
         const nbtTitle = rawToNbtNbtTitleInput.value.trim();
-        const nbtName = nbtTitle || 'Blacklight_NBT'; // Use underscore
-        const fileName = `Horion ${nbtName} Build.txt`; // Match original naming
-
-        const blob = new Blob([nbtText], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const nbtName = nbtTitle || 'Blacklight_NBT';
+        const fileName = `Horion ${nbtName} Build.txt`;
+        downloadFile(nbtText, fileName, 'text/plain;charset=utf-8');
         showValidationMessage(rawToNbtValidationMsg, 'NBT file download started.', 'success');
       });
     }
-    // --- End Raw to NBT Listeners ---
+
     // --- Commands to Structure Setup ---
     if(cmdStructDropArea) {
         setupDropAreaListeners(cmdStructDropArea, cmdStructInputFile, cmdStructFileNameDisplay);
-        setupFileInputHandler(
-            cmdStructInputFile,
-            (content) => { cmdStructFileContent = content; },
-            cmdStructFileNameDisplay,
-            cmdStructValidationMessage,
-            ['.txt', 'text/plain'],
-            readFileAsText
-        );
+        setupFileInputHandler(cmdStructInputFile, (content) => { cmdStructFileContent = content; }, cmdStructFileNameDisplay, cmdStructValidationMessage, ['.txt'], readFileAsText);
     }
     if (cmdStructConvertButton) {
         cmdStructConvertButton.addEventListener('click', () => {
-            if (!cmdStructFileContent) {
-                showValidationMessage(cmdStructValidationMessage, 'Please select a commands text file first.', 'error');
-                return;
-            }
-            hideValidationMessage(cmdStructValidationMessage);
-            showValidationMessage(cmdStructValidationMessage, 'Processing commands and converting...', 'info');
+            if (!cmdStructFileContent) { showValidationMessage(cmdStructValidationMessage, 'Please select a commands text file first.', 'error'); return; }
+            hideValidationMessage(cmdStructValidationMessage); showValidationMessage(cmdStructValidationMessage, 'Processing commands and converting...', 'info');
             cmdStructConvertButton.disabled = true;
-
             setTimeout(() => {
                 try {
-                    // 1. Process commands into the block map
                     const processResult = processCmdStructCommands(cmdStructFileContent);
                     if (!processResult.blocksFound) {
-                        hideValidationMessage(cmdStructValidationMessage);
-                        showValidationMessage(cmdStructValidationMessage, 'No valid blocks found in commands. Check file format or content.', 'error');
-                        cmdStructOutputPreview.style.display = 'none';
-                        commandsToStructureData = null; // Clear previous data
-                        return;
+                        hideValidationMessage(cmdStructValidationMessage); showValidationMessage(cmdStructValidationMessage, 'No valid blocks found in commands. Check file format or content.', 'error');
+                        cmdStructOutputPreview.style.display = 'none'; commandsToStructureData = null; return;
                     }
-
-                    // 2. Convert the block map to structure data object
-                    const result = convertToStructureData(); // This function now updates commandsToStructureData internally
+                    const result = convertToStructureData();
                     if (!result.success) {
-                        hideValidationMessage(cmdStructValidationMessage);
-                        showValidationMessage(cmdStructValidationMessage, result.message || 'Failed to convert processed blocks to structure data.', 'error');
-                        cmdStructOutputPreview.style.display = 'none';
-                        commandsToStructureData = null; // Clear data on failure
-                        return;
+                        hideValidationMessage(cmdStructValidationMessage); showValidationMessage(cmdStructValidationMessage, result.message || 'Failed to convert processed blocks to structure data.', 'error');
+                        cmdStructOutputPreview.style.display = 'none'; commandsToStructureData = null; return;
                     }
-
-                    // Display results (using the data stored in commandsToStructureData)
-                    const previewJson = JSON.stringify(commandsToStructureData, null, 2); // Pretty print JSON
-                    cmdStructPreviewText.textContent = previewJson; // Use textContent for preformatted text
-
-                    // Remove old stats if present
+                    const previewJson = JSON.stringify(commandsToStructureData, null, 2);
+                    cmdStructPreviewText.textContent = previewJson;
                     const existingStats = cmdStructPreviewContainer.querySelector('.alert.alert-info');
                     if (existingStats) existingStats.remove();
-
-                    // Add new stats using data from the result object
-                    const statsHtml = `
-                    <div class="alert alert-info mt-3 mb-3">
-                      <p class="mb-1"><strong>Structure Dimensions:</strong> ${result.dimensions.width}×${result.dimensions.height}×${result.dimensions.depth}</p>
-                      <p class="mb-1"><strong>World Origin Offset:</strong> [${result.origin.join(', ')}]</p>
-                      <p class="mb-1"><strong>Actual Block Count:</strong> ${result.blockCount}</p>
-                      <p class="mb-0"><strong>Unique Block Types (Palette Size):</strong> ${result.paletteCount}</p>
-                    </div>`;
-                    // Insert stats before the preview text area
+                    const statsHtml = `<div class="alert alert-info mt-3 mb-3"><p class="mb-1"><strong>Structure Dimensions:</strong> ${result.dimensions.width}×${result.dimensions.height}×${result.dimensions.depth}</p><p class="mb-1"><strong>World Origin Offset:</strong> [${result.origin.join(', ')}]</p><p class="mb-1"><strong>Actual Block Count:</strong> ${result.blockCount}</p><p class="mb-0"><strong>Unique Block Types (Palette Size):</strong> ${result.paletteCount}</p></div>`;
                     cmdStructPreviewText.insertAdjacentHTML('beforebegin', statsHtml);
-
-                    cmdStructOutputPreview.style.display = 'block';
-                    cmdStructDownloadButton.disabled = false;
-                    hideValidationMessage(cmdStructValidationMessage);
-                    showValidationMessage(cmdStructValidationMessage, `Conversion successful. Found ${result.blockCount} blocks.`, 'success');
-
+                    cmdStructOutputPreview.style.display = 'block'; cmdStructDownloadButton.disabled = false;
+                    hideValidationMessage(cmdStructValidationMessage); showValidationMessage(cmdStructValidationMessage, `Conversion successful. Found ${result.blockCount} blocks.`, 'success');
                 } catch (e) {
-                    console.error("CmdStruct Conversion Error:", e);
-                    hideValidationMessage(cmdStructValidationMessage);
+                    console.error("CmdStruct Conversion Error:", e); hideValidationMessage(cmdStructValidationMessage);
                     showValidationMessage(cmdStructValidationMessage, `Error during conversion: ${e.message}`, 'error');
-                    cmdStructOutputPreview.style.display = 'none';
-                    cmdStructDownloadButton.disabled = true;
-                    commandsToStructureData = null; // Clear data on error
-                } finally {
-                    cmdStructConvertButton.disabled = false; // Re-enable button
-                }
-            }, 50); // 50ms timeout
+                    cmdStructOutputPreview.style.display = 'none'; cmdStructDownloadButton.disabled = true; commandsToStructureData = null;
+                } finally { cmdStructConvertButton.disabled = false; }
+            }, 50);
         });
     }
     if (cmdStructDownloadButton) {
         cmdStructDownloadButton.addEventListener('click', () => {
             if (!commandsToStructureData || !commandsToStructureData.size || commandsToStructureData.size.some(dim => dim <= 0)) {
-                showValidationMessage(cmdStructValidationMessage, 'No valid structure data generated or structure is empty. Convert commands first.', 'error');
-                return;
+                showValidationMessage(cmdStructValidationMessage, 'No valid structure data generated or structure is empty. Convert commands first.', 'error'); return;
             }
-            hideValidationMessage(cmdStructValidationMessage);
-            showValidationMessage(cmdStructValidationMessage, 'Creating NBT buffer for .mcstructure file...', 'info');
+            hideValidationMessage(cmdStructValidationMessage); showValidationMessage(cmdStructValidationMessage, 'Creating NBT buffer for .mcstructure file...', 'info');
             cmdStructDownloadButton.disabled = true;
-
-
-            setTimeout(() => { // Timeout for UI update before potentially slow NBT creation
+            setTimeout(() => {
                 try {
                     const nbtBuffer = createNbtBuffer(commandsToStructureData);
                     console.log(`CmdStruct: NBT buffer created, size: ${nbtBuffer.byteLength} bytes.`);
-
-                    const blob = new Blob([nbtBuffer], { type: 'application/octet-stream' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    const fileName = 'converted_structure.mcstructure'; // Standard name
-                    a.href = url;
-                    a.download = fileName;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-
-                    hideValidationMessage(cmdStructValidationMessage);
-                    showValidationMessage(cmdStructValidationMessage, '.mcstructure file download started!', 'success');
-
+                    downloadFile(nbtBuffer, 'converted_structure.mcstructure', 'application/octet-stream');
+                    hideValidationMessage(cmdStructValidationMessage); showValidationMessage(cmdStructValidationMessage, '.mcstructure file download started!', 'success');
                 } catch (bufferError) {
-                    console.error("CmdStruct: Error creating/downloading .mcstructure file:", bufferError);
-                    hideValidationMessage(cmdStructValidationMessage);
+                    console.error("CmdStruct: Error creating/downloading .mcstructure file:", bufferError); hideValidationMessage(cmdStructValidationMessage);
                     showValidationMessage(cmdStructValidationMessage, `Error creating structure file: ${bufferError.message}.`, 'error');
-                } finally {
-                     cmdStructDownloadButton.disabled = false; // Re-enable button
-                }
-            }, 100); // 100ms timeout for NBT generation
+                } finally { cmdStructDownloadButton.disabled = false; }
+            }, 100);
         });
     }
 
-
-    // --- NBT to Raw Setup ---
+    // --- NBT to Raw Setup (Logic Updated) ---
      if(nbtToRawDropArea) {
         setupDropAreaListeners(nbtToRawDropArea, nbtToRawInputFile, nbtToRawFileNameDisplay);
         setupFileInputHandler(
@@ -1613,8 +1761,8 @@ const rawToNbtDropArea_UI = document.getElementById('raw-to-nbt-drop-area');
             (content) => { nbtToRawFileContent = content; },
             nbtToRawFileNameDisplay,
             nbtToRawValidationMessage,
-            ['.nbt', '.mcstructure', '.txt', 'text/plain'], // Allow relevant text-based formats
-            readFileAsText
+            ['.nbt', '.mcstructure', '.txt'], // Accepted file types
+            readFileAsText // Reads as text
         );
     }
      if (nbtToRawExtractButton) {
@@ -1627,47 +1775,27 @@ const rawToNbtDropArea_UI = document.getElementById('raw-to-nbt-drop-area');
             nbtToRawOutputPreview.style.display = 'none';
             nbtToRawPreviewText.value = '';
             nbtToRawExtractButton.disabled = true;
-
-            showValidationMessage(nbtToRawValidationMessage, 'Extracting commands from text...', 'info');
+            // The filter checkbox is visible but its state is not used by the new extraction logic.
+            // The new logic *only* extracts fill/setblock commands.
+            showValidationMessage(nbtToRawValidationMessage, 'Extracting fill/setblock commands from text...', 'info');
 
              setTimeout(() => {
                  try {
-                    const data = nbtToRawFileContent;
-                    const filterActive = nbtToRawFilterCheckbox.checked;
-
-                    // Find matches using both regexes
-                    const cmdLineMatches = Array.from(data.matchAll(nbtToRawPrimaryRegex), match => match[1]);
-                    const fallbackMatches = Array.from(data.matchAll(nbtToRawFallbackRegex), match => match[0]); // Use full match here
-
-                    // Combine and let post-processing handle uniqueness and cleaning
-                    const rawCommands = [...cmdLineMatches, ...fallbackMatches];
-
-                    let processedCommands = nbtToRawPostProcessCommands(rawCommands);
-
-                    let finalCommands = processedCommands;
-                    if (filterActive) {
-                        console.log("NBTtoRaw: Filtering for fill/setblock commands.");
-                        finalCommands = processedCommands.filter(cmd => {
-                            const trimmedCmd = cmd.trim().toLowerCase();
-                            return trimmedCmd.startsWith('fill ') || trimmedCmd.startsWith('setblock ');
-                        });
-                        console.log(`NBTtoRaw: Filtered down to ${finalCommands.length} commands.`);
-                    }
+                    const finalCommands = extractFillSetblockCommandsFromHorionText(nbtToRawFileContent);
 
                     if (finalCommands.length > 0) {
                         nbtToRawPreviewText.value = finalCommands.join('\n');
                         hideValidationMessage(nbtToRawValidationMessage);
-                        showValidationMessage(nbtToRawValidationMessage, `Extracted ${finalCommands.length} unique commands${filterActive ? ' (filtered)' : ''}.`, 'success');
+                        showValidationMessage(nbtToRawValidationMessage, `Extracted ${finalCommands.length} fill/setblock commands.`, 'success');
                     } else {
-                        nbtToRawPreviewText.value = `// No commands matching the patterns${filterActive ? ' (and filter)' : ''} were found in the text file.`;
+                        nbtToRawPreviewText.value = `// No fill/setblock commands found in the "Actions" blocks of the text file.`;
                         hideValidationMessage(nbtToRawValidationMessage);
-                        showValidationMessage(nbtToRawValidationMessage, `No matching commands found${filterActive ? ' after filtering' : ''}. Check file content and format.`, 'info');
+                        showValidationMessage(nbtToRawValidationMessage, `No matching commands found in "Actions" blocks. This tool specifically targets formats like Horion NBT output.`, 'info');
                     }
                     nbtToRawOutputPreview.style.display = 'block';
                     nbtToRawDownloadButton.disabled = (finalCommands.length === 0);
-
                 } catch (err) {
-                    console.error("NBTtoRaw Extraction Error:", err);
+                    console.error("NBTtoRaw Extraction Error (New Logic):", err);
                     hideValidationMessage(nbtToRawValidationMessage);
                     showValidationMessage(nbtToRawValidationMessage, `An error occurred during command extraction: ${err.message}`, 'error');
                     nbtToRawOutputPreview.style.display = 'none';
@@ -1675,30 +1803,19 @@ const rawToNbtDropArea_UI = document.getElementById('raw-to-nbt-drop-area');
                 } finally {
                      nbtToRawExtractButton.disabled = false;
                  }
-            }, 50); // 50ms delay
+            }, 50);
         });
     }
      if (nbtToRawDownloadButton) {
         nbtToRawDownloadButton.addEventListener('click', () => {
             const textToSave = nbtToRawPreviewText.value;
-            if (!textToSave || textToSave.startsWith("// No commands matching")) {
+            if (!textToSave || textToSave.startsWith("// No fill/setblock commands")) {
                 showValidationMessage(nbtToRawValidationMessage, "No valid command content to download.", 'error');
                 return;
             }
-
             const originalFileName = nbtToRawInputFile.files[0]?.name || 'extracted_commands';
-            const baseName = originalFileName.replace(/\.[^/.]+$/, ""); // Remove extension
-            const blob = new Blob([textToSave], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `${baseName}_raw_commands.txt`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            console.log(`NBTtoRaw: Downloaded extracted commands as ${a.download}`);
+            const baseName = originalFileName.replace(/\.[^/.]+$/, "");
+            downloadFile(textToSave, `${baseName}_raw_commands.txt`, 'text/plain;charset=utf-8');
             showValidationMessage(nbtToRawValidationMessage, 'Raw commands file download started.', 'success');
         });
     }
@@ -1706,258 +1823,157 @@ const rawToNbtDropArea_UI = document.getElementById('raw-to-nbt-drop-area');
     // --- Schematic to Commands Setup ---
      function displaySchemStatus(message, type = 'info') {
         if (!schemStatusDiv) return;
-        schemStatusDiv.textContent = message;
-        schemStatusDiv.className = 'status-message'; // Reset classes
-        schemStatusDiv.classList.add(type); // Add 'error', 'success', or 'info'
-        schemStatusDiv.style.display = 'block';
+        showValidationMessage(schemStatusDiv, message, type);
     }
-     function hideSchemStatus() {
-        if(schemStatusDiv) schemStatusDiv.style.display = 'none';
-     }
-
      if (schemDropArea && schemInputFile && schemFileNameDisplay) {
          setupDropAreaListeners(schemDropArea, schemInputFile, schemFileNameDisplay);
-         // Special handler setup because we need the File object, not content yet
-         schemInputFile.addEventListener('change', (e) => {
-             const file = e.target.files[0];
-             if (file) {
-                const lowerName = file.name.toLowerCase();
-                if (lowerName.endsWith('.schem') || lowerName.endsWith('.schematic')) {
-                     schemFileObject = file; // Store the File object
-                     schemFileNameDisplay.textContent = file.name + ' selected.';
-                     hideSchemStatus();
-                } else {
-                    displaySchemStatus('Invalid file type. Please select a .schem or .schematic file.', 'error');
-                    schemFileNameDisplay.textContent = 'No file selected';
-                    schemInputFile.value = ''; // Clear invalid selection
-                    schemFileObject = null;
-                }
-            } else {
-                schemFileNameDisplay.textContent = 'No file selected';
-                schemFileObject = null;
-                hideSchemStatus();
-            }
-         });
+         setupFileInputHandler(schemInputFile, (file) => { schemFileObject = file; }, schemFileNameDisplay, schemStatusDiv, ['.schem', '.schematic']);
      }
      if (schemGenerateButton) {
         schemGenerateButton.addEventListener('click', () => {
-            const file = schemFileObject; // Use the stored File object
+            const file = schemFileObject;
             const outputNameBase = schemOutputNameInput.value.trim() || 'SchemCommands';
             const includeAir = schemIncludeAirCheckbox.checked;
             const offsetX = parseInt(schemOffsetXInput.value, 10) || 0;
             const offsetY = parseInt(schemOffsetYInput.value, 10) || 0;
             const offsetZ = parseInt(schemOffsetZInput.value, 10) || 0;
-
-            if (!file) {
-                displaySchemStatus('Please select a .schem or .schematic file first!', 'error');
-                return;
-            }
-
-            // Disable button, show status
-            displaySchemStatus('Reading schematic file...', 'info');
-            schemGenerateButton.disabled = true;
-
+            if (!file) { displaySchemStatus('Please select a .schem or .schematic file first!', 'error'); return; }
+            displaySchemStatus('Reading schematic file...', 'info'); schemGenerateButton.disabled = true;
             const reader = new FileReader();
             reader.onload = function(event) {
                 try {
                     displaySchemStatus('Decompressing and parsing NBT...', 'info');
-                    const fileData = new Uint8Array(event.target.result);
-                    let nbtDataBuffer;
-
-                    // Check for Gzip magic numbers (0x1f, 0x8b)
+                    const fileData = new Uint8Array(event.target.result); let nbtDataBuffer;
                     if (fileData.length >= 2 && fileData[0] === 0x1f && fileData[1] === 0x8b) {
-                        if (typeof pako === 'undefined') {
-                            throw new Error("Pako library is not loaded. Cannot decompress Gzipped schematic.");
-                        }
-                        console.log("Schem: Detected Gzip compression. Inflating...");
-                        const decompressedData = pako.inflate(fileData);
-                        nbtDataBuffer = decompressedData.buffer;
-                        console.log(`Schem: Decompressed size: ${nbtDataBuffer.byteLength} bytes`);
-                    } else {
-                         console.log("Schem: File does not appear to be Gzipped. Attempting direct NBT parse.");
-                         nbtDataBuffer = fileData.buffer.slice(fileData.byteOffset, fileData.byteOffset + fileData.byteLength); // Ensure correct ArrayBuffer view
-                    }
-
-                     if (!nbtDataBuffer || nbtDataBuffer.byteLength === 0) {
-                         throw new Error("Failed to get valid data buffer after potential decompression.");
-                     }
-
-                    const schematicNbt = loadSchematicNBT(nbtDataBuffer); // Use shared NBT reader
-
-                    // Extract dimensions (handle potential variations in structure)
+                        if (typeof pako === 'undefined') throw new Error("Pako library is not loaded.");
+                        const decompressedData = pako.inflate(fileData); nbtDataBuffer = decompressedData.buffer;
+                    } else { nbtDataBuffer = fileData.buffer.slice(fileData.byteOffset, fileData.byteOffset + fileData.byteLength); }
+                     if (!nbtDataBuffer || nbtDataBuffer.byteLength === 0) throw new Error("Failed to get valid data buffer.");
+                    const schematicNbt = loadSchematicNBT(nbtDataBuffer);
                     let width, height, length, dataContainerNbt;
                     if (typeof schematicNbt.Width === 'number' && typeof schematicNbt.Height === 'number' && typeof schematicNbt.Length === 'number') {
                         width = schematicNbt.Width; height = schematicNbt.Height; length = schematicNbt.Length; dataContainerNbt = schematicNbt;
-                    } else if (schematicNbt.Schematic && typeof schematicNbt.Schematic.Width === 'number') { // Handle nested structure
+                    } else if (schematicNbt.Schematic && typeof schematicNbt.Schematic.Width === 'number') {
                          width = schematicNbt.Schematic.Width; height = schematicNbt.Schematic.Height; length = schematicNbt.Schematic.Length; dataContainerNbt = schematicNbt.Schematic;
-                         console.log("Schem: Detected nested NBT structure for dimensions/data.");
-                    } else {
-                        console.error("Schem NBT Structure:", JSON.stringify(Object.keys(schematicNbt)));
-                        throw new Error("Could not find standard dimension tags (Width, Height, Length) in schematic NBT.");
-                    }
-
-                    // Validate dimensions
-                    if (width <= 0 || height <= 0 || length <= 0) {
-                        throw new Error(`Invalid dimensions found in schematic: W=${width}, H=${height}, L=${length}`);
-                    }
-                    const dims = [width, height, length];
-                    const offset = [offsetX, offsetY, offsetZ];
-
+                    } else { throw new Error("Could not find standard dimension tags (Width, Height, Length)."); }
+                    if (width <= 0 || height <= 0 || length <= 0) throw new Error(`Invalid dimensions: W=${width}, H=${height}, L=${length}`);
+                    const dims = [width, height, length]; const offsetArr = [offsetX, offsetY, offsetZ];
                     displaySchemStatus(`Generating commands for ${width}x${height}x${length} structure...`, 'info');
-
-                    // Call the command generation function
-                    const commands = generateSchemCommands(dataContainerNbt, dims, offset, includeAir);
-
-                    if (commands.length === 0 && processedBlockCount > 0) { // Check if blocks were processed but no commands generated (e.g., all air and includeAir=false)
-                        displaySchemStatus('Warning: Schematic processed, but no commands generated (possibly only air).', 'info');
-                        return; // Don't trigger download for empty file
-                    }
-                    if (commands.length === 0 && processedBlockCount === 0) {
-                         displaySchemStatus('Warning: No blocks processed and no commands generated. Is the schematic empty?', 'info');
-                         return;
-                    }
-
-                    // Create and Download Text File
+                    const {commands, processedBlockCount} = generateSchemCommands(dataContainerNbt, dims, offsetArr, includeAir);
+                    if (commands.length === 0 && processedBlockCount > 0) { displaySchemStatus('Warning: Schematic processed, but no commands generated (possibly only air).', 'info'); return; }
+                    if (commands.length === 0 && processedBlockCount === 0) { displaySchemStatus('Warning: No blocks processed and no commands generated. Is the schematic empty or invalid?', 'info'); return; }
                     const now = new Date();
                     const timestamp = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
-                    const commandsText = commands.join('\n');
-                    const blob = new Blob([commandsText], { type: 'text/plain;charset=utf-8' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `${outputNameBase}_${timestamp}.txt`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-
+                    downloadFile(commands.join('\n'), `${outputNameBase}_${timestamp}.txt`, 'text/plain;charset=utf-8');
                     displaySchemStatus(`Success! ${commands.length} commands generated and download started.`, 'success');
-
-                } catch (e) {
-                    console.error("Schematic Processing Error:", e);
-                    displaySchemStatus(`Error: ${e.message}`, 'error');
-                } finally {
-                    schemGenerateButton.disabled = false; // Re-enable button
-                }
-            }; // end reader.onload
-
-            reader.onerror = () => {
-                displaySchemStatus('Error reading the selected schematic file.', 'error');
-                schemGenerateButton.disabled = false;
+                } catch (e) { console.error("Schematic Processing Error:", e); displaySchemStatus(`Error: ${e.message}`, 'error');
+                } finally { schemGenerateButton.disabled = false; }
             };
-
-            // Read the file selected by the user as an ArrayBuffer
+            reader.onerror = () => { displaySchemStatus('Error reading the selected schematic file.', 'error'); schemGenerateButton.disabled = false; };
             reader.readAsArrayBuffer(file);
         });
     }
 
+    // --- MCStructure to Commands Setup ---
+    function displayMcStructureStatus(message, type = 'info') {
+        if (!mcstructureStatusDiv) return;
+        showValidationMessage(mcstructureStatusDiv, message, type);
+    }
+    if (mcstructureDropArea && mcstructureFileInput && mcstructureFileNameDisplay) {
+        setupDropAreaListeners(mcstructureDropArea, mcstructureFileInput, mcstructureFileNameDisplay);
+        setupFileInputHandler(mcstructureFileInput, (file) => { mcStructure_selectedFile = file; }, mcstructureFileNameDisplay, mcstructureStatusDiv, ['.mcstructure']);
+    }
+    if (mcstructureGenerateButton) {
+        mcstructureGenerateButton.addEventListener('click', async () => {
+            if (!mcStructure_selectedFile) { displayMcStructureStatus('Please select a .mcstructure file first.', 'error'); return; }
+            mcStructure_GUI_X_OFFSET = parseInt(mcstructureOffsetXInput.value, 10) || 0;
+            mcStructure_GUI_Y_OFFSET = parseInt(mcstructureOffsetYInput.value, 10) || 0;
+            mcStructure_GUI_Z_OFFSET = parseInt(mcstructureOffsetZInput.value, 10) || 0;
+            const baseIgnore = ["minecraft:structure_block", "minecraft:structure_void"];
+            if (mcstructureIncludeAirCheckbox.checked) { mcStructure_GUI_BLOCKS_TO_IGNORE = [...baseIgnore]; }
+            else { mcStructure_GUI_BLOCKS_TO_IGNORE = ["minecraft:air", ...baseIgnore]; }
+            mcStructure_GUI_KEEP_WATERLOG = mcstructureProcessWaterlogLayerCheckbox.checked;
+            mcStructure_GUI_INCLUDE_BLOCK_STATES = mcstructureIncludeBlockStatesCheckbox.checked;
+            const outputBaseName = mcstructureOutputNameInput.value.trim() || "Generated_Structure";
+            const outputFileName = `${outputBaseName}_commands.txt`;
+            displayMcStructureStatus('Processing .mcstructure file... This may take a moment.', 'info');
+            mcstructureGenerateButton.disabled = true;
+            try {
+                const fileBuffer = await mcStructure_selectedFile.arrayBuffer(); let nbtDataBuffer;
+                try {
+                    const decompressed = pako.inflate(new Uint8Array(fileBuffer)); nbtDataBuffer = decompressed.buffer;
+                    console.log("MCStructure: Successfully decompressed Gzipped NBT data with Pako.");
+                    displayMcStructureStatus('Decompressed Gzipped NBT data. Parsing structure...', 'info');
+                } catch (e) {
+                    console.log("MCStructure: File does not appear to be Gzipped (Pako inflate failed), processing as raw NBT.");
+                    nbtDataBuffer = fileBuffer;
+                    displayMcStructureStatus('Processing as raw NBT data (not Gzipped). Parsing structure...', 'info');
+                }
+                const generatedCommands = structureToRelativeSetblocksMcStructure(nbtDataBuffer);
+                if (generatedCommands === null || typeof generatedCommands === 'undefined') {
+                    displayMcStructureStatus("Command generation failed due to critical errors during structure processing.", 'error');
+                } else if (generatedCommands.length === 0) {
+                    displayMcStructureStatus('No commands were generated. The structure might be empty or only contain ignored blocks.', 'info');
+                } else {
+                    downloadFile(generatedCommands.join('\n'), outputFileName, 'text/plain;charset=utf-8');
+                    displayMcStructureStatus(`Successfully generated ${generatedCommands.length} commands. Download started as '${outputFileName}'.`, 'success_long');
+                }
+            } catch (error) {
+                console.error("--- MCStructure CRITICAL ERROR ---", error);
+                displayMcStructureStatus(`CRITICAL ERROR: ${error.message}. Check console.`, 'error');
+            } finally { mcstructureGenerateButton.disabled = false; console.log("--- MCStructure Script Finished ---"); }
+        });
+    }
 
-    // --- Java to Bedrock Setup (CLIENT-SIDE) ---
+    // --- Java to Bedrock Setup ---
      if(javaBedrockDropArea) {
         setupDropAreaListeners(javaBedrockDropArea, javaBedrockInputFile, javaBedrockFileNameDisplay);
-        setupFileInputHandler(
-            javaBedrockInputFile,
-            (content) => { javaBedrockFileContent = content; },
-            javaBedrockFileNameDisplay,
-            javaBedrockValidationMessage,
-            ['.txt', 'text/plain'],
-            readFileAsText
-        );
+        setupFileInputHandler(javaBedrockInputFile, (content) => { javaBedrockFileContent = content; }, javaBedrockFileNameDisplay, javaBedrockValidationMessage, ['.txt'], readFileAsText);
     }
      if (javaBedrockTranslateButton) {
-        javaBedrockTranslateButton.addEventListener('click', async () => { // Keep async for the translator functions
-            if (!javaBedrockFileContent) {
-                showValidationMessage(javaBedrockValidationMessage, 'Please select a file with Java commands first.', 'error');
-                return;
-            }
-
-             // Check if the translator function and maps are loaded
+        javaBedrockTranslateButton.addEventListener('click', async () => {
+            if (!javaBedrockFileContent) { showValidationMessage(javaBedrockValidationMessage, 'Please select a file with Java commands first.', 'error'); return; }
              if (typeof translateCommands !== 'function' || typeof window.javaToUniversalMaps === 'undefined' || typeof window.universalToBedrockMaps === 'undefined') {
-                 console.error("Translator function or mapping data not found. Ensure translator.js and mapping scripts are loaded correctly before script.js.");
-                 showValidationMessage(javaBedrockValidationMessage, 'Translation components not loaded. Check console.', 'error');
-                 return;
+                 console.error("Translator function or mapping data not found."); showValidationMessage(javaBedrockValidationMessage, 'Translation components not loaded. Check console.', 'error'); return;
              }
-
-
             hideValidationMessage(javaBedrockValidationMessage);
             const commands = javaBedrockFileContent.split(/\r?\n/).filter(cmd => cmd.trim().length > 0);
-            if (commands.length === 0) {
-                showValidationMessage(javaBedrockValidationMessage, 'File contains no valid commands to translate.', 'info');
-                return;
-            }
-
+            if (commands.length === 0) { showValidationMessage(javaBedrockValidationMessage, 'File contains no valid commands to translate.', 'info'); return; }
             try {
-                // Show loading state
-                javaBedrockTranslateButton.disabled = true;
-                javaBedrockTranslateButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Translating...';
+                javaBedrockTranslateButton.disabled = true; javaBedrockTranslateButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Translating...';
                 showValidationMessage(javaBedrockValidationMessage, `Translating ${commands.length} Java commands...`, 'info');
-
-                // --- Direct Client-Side Translation ---
-                 // Use a short timeout to allow the UI to update *before* the potentially blocking translation work
-                 await new Promise(resolve => setTimeout(resolve, 50));
-
-                 // Call the translation function directly from translator.js
+                await new Promise(resolve => setTimeout(resolve, 50));
                  const { translatedCommands, errors } = await translateCommands(commands);
-                 // ^^^ This function MUST be available globally or imported if using modules
-
-                 hideValidationMessage(javaBedrockValidationMessage); // Clear info message
-
+                 hideValidationMessage(javaBedrockValidationMessage);
                  if (errors && errors.length > 0) {
-                     console.warn("Java->Bedrock Translation Errors:", errors);
-                     // Display first few errors
-                     const errorSummary = errors.slice(0, 5).join('; ');
-                     showValidationMessage(javaBedrockValidationMessage, `Translation completed with ${errors.length} errors. Check console for details. First few: ${errorSummary}`, 'error'); // Use 'error' type if there were issues
-                 } else if (translatedCommands.length > 0) {
-                      showValidationMessage(javaBedrockValidationMessage, 'Translation completed successfully!', 'success');
-                 } else {
-                     showValidationMessage(javaBedrockValidationMessage, 'Translation finished, but no commands were successfully translated.', 'info');
-                 }
-
-                 // Display translated commands
+                     const errorSummary = errors.slice(0, 3).join('; ');
+                     showValidationMessage(javaBedrockValidationMessage, `Translation completed with ${errors.length} errors. Sample: ${errorSummary}... (Check console for all errors)`, 'error');
+                 } else if (translatedCommands.length > 0) { showValidationMessage(javaBedrockValidationMessage, 'Translation completed successfully!', 'success');
+                 } else { showValidationMessage(javaBedrockValidationMessage, 'Translation finished, but no commands were successfully translated.', 'info'); }
                  javaBedrockPreviewText.value = translatedCommands.join('\n');
                  javaBedrockOutputPreview.style.display = 'block';
                  javaBedrockDownloadButton.disabled = translatedCommands.length === 0;
-
             } catch (error) {
-                console.error('Java->Bedrock Client-Side Translation error:', error);
-                hideValidationMessage(javaBedrockValidationMessage); // Clear info message
+                console.error('Java->Bedrock Client-Side Translation error:', error); hideValidationMessage(javaBedrockValidationMessage);
                 showValidationMessage(javaBedrockValidationMessage, `Translation Error: ${error.message}`, 'error');
-                javaBedrockOutputPreview.style.display = 'none';
-                javaBedrockDownloadButton.disabled = true;
+                javaBedrockOutputPreview.style.display = 'none'; javaBedrockDownloadButton.disabled = true;
             } finally {
-                // Reset button state
-                javaBedrockTranslateButton.disabled = false;
-                javaBedrockTranslateButton.innerHTML = '<i class="fas fa-exchange-alt me-2"></i>Translate Commands';
+                javaBedrockTranslateButton.disabled = false; javaBedrockTranslateButton.innerHTML = '<i class="fas fa-exchange-alt me-2"></i>Translate Commands';
             }
         });
     }
      if (javaBedrockDownloadButton) {
         javaBedrockDownloadButton.addEventListener('click', () => {
             const commandsText = javaBedrockPreviewText.value;
-            if (!commandsText) {
-                showValidationMessage(javaBedrockValidationMessage, 'No translated commands to download.', 'error');
-                return;
-            }
+            if (!commandsText) { showValidationMessage(javaBedrockValidationMessage, 'No translated commands to download.', 'error'); return; }
             const originalFileName = javaBedrockInputFile.files[0]?.name || 'java_commands';
-            const baseName = originalFileName.replace(/\.[^/.]+$/, ""); // Remove extension
-            const fileName = `${baseName}_translated_bedrock.txt`;
-
-            const blob = new Blob([commandsText], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            const baseName = originalFileName.replace(/\.[^/.]+$/, "");
+            downloadFile(commandsText, `${baseName}_translated_bedrock.txt`, 'text/plain;charset=utf-8');
             showValidationMessage(javaBedrockValidationMessage, 'Bedrock commands file download started.', 'success');
         });
     }
 
-
     console.log("Blacklight NBT script initialized successfully.");
-
 }); // End DOMContentLoaded
 
 // --- END OF FILE script.js ---
