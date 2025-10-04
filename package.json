@@ -5,26 +5,27 @@
     "main": "server.js",
     "type": "module",
     "scripts": {
-      "start": "node server.js",
-      "test": "echo \"Error: no test specified\" && exit 1"
+        "start": "node server.js",
+        "test": "echo \"Error: no test specified\" && exit 1"
     },
     "keywords": [
-      "minecraft",
-      "nbt",
-      "schematic",
-      "command",
-      "translator",
-      "java",
-      "bedrock",
-      "structure",
-      "gui",
-      "web",
-      "tool"
+        "minecraft",
+        "nbt",
+        "schematic",
+        "command",
+        "translator",
+        "java",
+        "bedrock",
+        "structure",
+        "gui",
+        "web",
+        "tool"
     ],
     "author": "Blacklight Community (Integration by AI)",
     "license": "ISC",
     "dependencies": {
-      "cors": "^2.8.5",
-      "express": "^4.19.2"
+        "cors": "^2.8.5",
+        "express": "^4.19.2",
+        "fluent-ffmpeg": "^2.1.3"
     }
-  }
+}

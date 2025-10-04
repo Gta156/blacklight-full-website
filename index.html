@@ -299,8 +299,6 @@
              margin-bottom: 25px;
              color: var(--neon-teal);
              font-weight: 600;
-             /* Removing animation for less distraction, can be added back if needed */
-             /* animation: neon-glow 2s infinite; */
          }
 
         /* Drop Area Styles */
@@ -506,7 +504,13 @@
         #cmd-struct-preview-text { color: var(--text-medium); } /* Less intense color for JSON */
         #nbt-to-raw-preview-text { color: var(--neon-blue); }
         #schem-to-commands-preview-text { color: var(--neon-purple); } /* Schem doesn't have preview, but set for consistency */
-        #java-bedrock-preview-text { color: var(--neon-blue); }
+        
+        #schem-mcstructure-log-preview {
+            background-color: #050508; border: 1px solid var(--border-color-base); border-radius: 8px;
+            padding: 15px; max-height: 400px; overflow-y: auto; color: #e0e0e0;
+            font-family: 'Consolas', 'Menlo', 'Courier New', monospace; font-size: 0.85rem;
+            white-space: pre-wrap; word-break: break-word;
+        }
 
         /* Validation & Status Message Styles */
         .validation-message, .status-message {
@@ -738,7 +742,7 @@
             <li><a href="#" class="tool-link" data-tool="tool-nbt-to-raw"><i class="fas fa-terminal fa-fw"></i> NBT to Raw</a></li>
             <li><a href="#" class="tool-link" data-tool="tool-schem-to-commands"><i class="fas fa-file-archive fa-fw"></i> Schematic to Commands</a></li>
             <li><a href="#" class="tool-link" data-tool="tool-mcstructure-to-commands"><i class="fas fa-file-code fa-fw"></i> MCStructure to Cmds</a></li>
-            <li><a href="#" class="tool-link" data-tool="tool-java-to-bedrock"><i class="fas fa-exchange-alt fa-fw"></i> Java to Bedrock</a></li>
+            <li><a href="#" class="tool-link" data-tool="tool-schem-to-mcstructure"><i class="fas fa-file-export fa-fw"></i> Schem to MCStructure</a></li>
         </ul>
     </div>
 
@@ -769,15 +773,15 @@
                     </div>
                     <div class="tool-showcase-item" data-tool-target="tool-schem-to-commands">
                         <h4><i class="fas fa-file-archive fa-fw"></i> Schematic to Commands</h4>
-                        <p>Convert Java Edition .schem/.schematic files into Bedrock commands.</p>
+                        <p>Convert Java Edition .schem files into optimized Bedrock commands.</p>
                     </div>
                     <div class="tool-showcase-item" data-tool-target="tool-mcstructure-to-commands">
                         <h4><i class="fas fa-file-code fa-fw"></i> MCStructure to Cmds</h4>
                         <p>Convert Bedrock .mcstructure files into a list of setblock/fill commands.</p>
                     </div>
-                     <div class="tool-showcase-item" data-tool-target="tool-java-to-bedrock">
-                        <h4><i class="fas fa-exchange-alt fa-fw"></i> Java to Bedrock</h4>
-                        <p>Translate Java Edition commands (setblock/fill) to Bedrock format.</p>
+                     <div class="tool-showcase-item" data-tool-target="tool-schem-to-mcstructure">
+                        <h4><i class="fas fa-file-export fa-fw"></i> Schem to MCStructure</h4>
+                        <p>Convert Java .schem files directly into Bedrock .mcstructure files.</p>
                     </div>
                 </div>
                  <div class="mt-5 text-center">
@@ -789,7 +793,7 @@
         </section>
 
         <!-- Tool Section: Raw to NBT -->
-        <section id="tool-raw-to-nbt" class="tool-section"> <!-- No longer active by default -->
+        <section id="tool-raw-to-nbt" class="tool-section">
             <div class="hero-section">
                 <h1 class="hero-title">RAW TEXT TO NBT CONVERTER</h1>
                 <p class="hero-subtitle">Convert raw text commands into a structured NBT format for specific Minecraft tools (e.g., Horion).</p>
@@ -893,7 +897,7 @@
                          <!-- Filter Checkbox -->
                          <div class="d-flex justify-content-center mt-3 mb-3">
                              <div class="form-check form-switch">
-                                 <input class="form-check-input" type="checkbox" role="switch" id="nbt-raw-filter-checkbox">
+                                 <input class="form-check-input" type="checkbox" role="switch" id="nbt-raw-filter-checkbox" checked>
                                  <label class="form-check-label" for="nbt-raw-filter-checkbox">Show Only Fill/Setblock Commands</label>
                              </div>
                          </div>
@@ -914,41 +918,6 @@
                             </button>
                         </div>
                     </div>
-                     <!-- Info Section for NBT to Raw -->
-                     <div class="info-section mt-5">
-                         <div class="row justify-content-center">
-                             <div class="col-md-6 mb-4">
-                                 <div class="info-card">
-                                     <h3><i class="fas fa-info-circle"></i>How it Works & Limitations</h3>
-                                     <ul>
-                                         <li>Reads the uploaded file as plain text.</li>
-                                         <li>Uses regular expressions to find text matching common command patterns:</li>
-                                         <li>   - `"cmd_line": "..."` (handles basic escapes)</li>
-                                         <li>   - Standard `setblock ...` or `fill ...` syntax.</li>
-                                         <li>Attempts to clean up extracted commands (e.g., fix `\\\"` -> `"`).</li>
-                                         <li><strong>Limitation:</strong> Cannot parse true binary NBT. Only works on text representations.</li>
-                                         <li><strong>Limitation:</strong> Relies on commands matching the expected text patterns. Complex or unusual formatting might be missed.</li>
-                                     </ul>
-                                 </div>
-                             </div>
-                             <div class="col-md-6 mb-4">
-                                 <div class="info-card">
-                                     <h3><i class="fas fa-wrench"></i>Troubleshooting</h3>
-                                     <ul>
-                                         <li><i>No commands found:</i> File likely doesn't contain commands in a recognized text format, or it might be binary. Open the file in a text editor to check.</li>
-                                         <li><i>Incorrect commands extracted:</i> The regex patterns might be too broad or too narrow for your specific file's format.</li>
-                                         <li><i>File reading error:</i> Ensure the file is accessible, not corrupted, and has read permissions.</li>
-                                         <li><i>Checkbox filtering too much:</i> Ensure the desired commands actually start with `fill` or `setblock`.</li>
-                                     </ul>
-                                     <div class="mt-3 text-center">
-                                         <a href="https://discord.gg/3pZvgq4XPq" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-cyber">
-                                             <i class="fab fa-discord"></i>Join Community
-                                         </a>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
-                     </div>
                 </div>
             </div>
         </section>
@@ -966,22 +935,36 @@
                          <div id="schem-drop-area" class="drop-area" title="Accepts .schem or .schematic files">
                              <i class="fas fa-file-archive"></i>
                              <p>Drag and drop your .schem/.schematic file here, or click</p>
-                             <span id="schem-file-name" class="file-name-display">No file selected</span> <!-- Use specific ID -->
+                             <span id="schem-file-name" class="file-name-display">No file selected</span>
                              <input type="file" id="schem-input-file" accept=".schem,.schematic" class="file-input">
                          </div>
                          <div class="row mt-4">
-                             <div class="col-md-6 mb-3">
+                             <div class="col-md-12 mb-3">
                                  <label for="schem-outputName" class="form-label">Output File Name Base</label>
                                  <input type="text" id="schem-outputName" class="form-control" placeholder="e.g., MyBuild_Commands" value="SchemCommands">
                              </div>
-                             <div class="col-md-6 mb-3 d-flex align-items-center justify-content-center">
-                                <div class="form-check form-switch mt-md-4"> <!-- Adjusted margin for medium screens -->
+                         </div>
+                         <div class="row">
+                             <div class="col-md-4 mb-2 d-flex align-items-center justify-content-start">
+                                 <div class="form-check form-switch">
                                      <input class="form-check-input" type="checkbox" role="switch" id="schem-includeAir">
                                      <label class="form-check-label" for="schem-includeAir">Include Air Blocks</label>
                                  </div>
                              </div>
+                             <div class="col-md-4 mb-2 d-flex align-items-center justify-content-start">
+                                 <div class="form-check form-switch">
+                                     <input class="form-check-input" type="checkbox" role="switch" id="schem-includeBlockStates" checked>
+                                     <label class="form-check-label" for="schem-includeBlockStates">Include Block States</label>
+                                 </div>
+                             </div>
+                             <div class="col-md-4 mb-2 d-flex align-items-center justify-content-start">
+                                 <div class="form-check form-switch">
+                                     <input class="form-check-input" type="checkbox" role="switch" id="schem-processWaterlogging" checked>
+                                     <label class="form-check-label" for="schem-processWaterlogging">Process Waterlogging</label>
+                                 </div>
+                             </div>
                          </div>
-                         <div class="row">
+                         <div class="row mt-3">
                              <label class="form-label col-12">Command Offset (Relative to Player)</label>
                              <div class="col-md-4 mb-3">
                                  <label for="schem-offsetX" class="form-label visually-hidden">Offset X</label>
@@ -1001,14 +984,13 @@
                                  <i class="fas fa-cogs"></i>Generate Commands
                              </button>
                          </div>
-                         <div id="schem-status" class="status-message"></div> <!-- Use status message styling -->
+                         <div id="schem-status" class="status-message"></div>
                      </div>
-                     <!-- No preview area for schem to commands, direct download -->
                  </div>
              </div>
         </section>
 
-        <!-- Tool Section: MCStructure to Commands (NEW) -->
+        <!-- Tool Section: MCStructure to Commands -->
         <section id="tool-mcstructure-to-commands" class="tool-section">
             <div class="hero-section">
                 <h1 class="hero-title">MCSTRUCTURE TO COMMANDS</h1>
@@ -1080,42 +1062,42 @@
             </div>
         </section>
 
-
-        <!-- Tool Section: Java to Bedrock -->
-        <section id="tool-java-to-bedrock" class="tool-section">
-             <div class="hero-section">
-                 <h1 class="hero-title">JAVA TO BEDROCK TRANSLATOR</h1>
-                 <p class="hero-subtitle">Convert Minecraft Java Edition setblock/fill commands to Bedrock Edition format using client-side mappings.</p>
-             </div>
+        <!-- Tool Section: Schematic to MCStructure -->
+        <section id="tool-schem-to-mcstructure" class="tool-section">
+            <div class="hero-section">
+                <h1 class="hero-title">SCHEMATIC TO MCSTRUCTURE</h1>
+                <p class="hero-subtitle">Convert Java Edition .schem files directly into downloadable Bedrock Edition .mcstructure files.</p>
+            </div>
             <div class="row">
-                 <div class="col-lg-8 mx-auto">
-                     <div class="tool-card">
-                         <h3 class="tool-title">JAVA COMMAND INPUT</h3>
-                         <div id="java-bedrock-drop-area" class="drop-area" title="Text files with Java commands (.txt)">
-                              <i class="fab fa-java"></i>
-                             <p>Drag and drop your Java commands file here, or click</p>
-                             <span class="file-name-display">No file selected</span>
-                             <input type="file" id="java-bedrock-input-file" accept=".txt,text/plain" class="file-input">
-                         </div>
-                         <div class="text-center mt-4">
-                             <button id="java-bedrock-translate-button" class="btn btn-cyber">
-                                 <i class="fas fa-exchange-alt"></i>Translate Commands
-                             </button>
-                         </div>
-                         <div id="java-bedrock-validation-message" class="validation-message"></div>
-                     </div>
-                     <div id="java-bedrock-output-preview" class="output-preview">
-                         <h4><i class="fas fa-code"></i>TRANSLATED BEDROCK COMMANDS</h4>
-                         <textarea id="java-bedrock-preview-text" class="code-textarea" rows="10" readonly spellcheck="false" wrap="off" placeholder="Translated Bedrock commands will appear here..."></textarea>
-                         <div class="text-center mt-3">
-                             <button id="java-bedrock-download-button" class="btn btn-cyber" disabled>
-                                 <i class="fas fa-download"></i>Download Bedrock Commands
-                             </button>
-                         </div>
-                     </div>
-                 </div>
-             </div>
+                <div class="col-lg-8 mx-auto">
+                    <div class="tool-card">
+                        <h3 class="tool-title">SCHEMATIC FILE INPUT</h3>
+                        <div id="schem-mcstructure-drop-area" class="drop-area" title="Accepts .schem or .schematic files">
+                            <i class="fas fa-file-archive"></i>
+                            <p>Drag and drop your .schem/.schematic file here, or click</p>
+                            <span id="schem-mcstructure-file-name" class="file-name-display">No file selected</span>
+                            <input type="file" id="schem-mcstructure-input-file" class="file-input" accept=".schem,.schematic">
+                        </div>
+                        <div class="text-center mt-4">
+                            <button id="schem-mcstructure-convert-button" class="btn btn-cyber">
+                                <i class="fas fa-cogs"></i> Convert to .mcstructure
+                            </button>
+                        </div>
+                        <div id="schem-mcstructure-status" class="status-message"></div>
+                        <div id="schem-mcstructure-log-viewer" class="output-preview" style="display: none; border-image: none; padding: 20px;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="mb-0" style="color: var(--neon-teal);">Translation Log</h5>
+                                <button id="schem-mcstructure-download-log-button" class="btn btn-sm btn-outline-info">
+                                    <i class="fas fa-download me-1"></i> Download Log
+                                </button>
+                            </div>
+                            <pre id="schem-mcstructure-log-preview"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
+
 
     </main>
 
@@ -1139,11 +1121,8 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Mapping Data (MUST be loaded BEFORE translator.js and script.js) -->
+    <!-- Mapping Data (MUST be loaded BEFORE script.js) -->
     <script src="mappings.js"></script>
-
-    <!-- Translator Logic (Client-Side Version) -->
-    <script src="translator.js"></script>
 
     <!-- Combined Custom UI/Tool Logic -->
     <script src="script.js"></script>
